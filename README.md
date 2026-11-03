@@ -163,6 +163,10 @@ farol/
 - `farol/recovery.py` — o índice único de recuperação (`recovery_index`,
   `recovery_label`, pesos padrão): compartilhado por `today.py` (relatório do
   dia) e `calibration.py` (log de calibração), daí viver fora dos dois.
+- `farol/report_sections.py` — monta as seções de texto do relatório de
+  terminal (RESUMO, TREINO, CARGA, RECUPERAÇÃO, SONO, padrões). `today.py`
+  coleta o contexto, aplica as regras de padrão e imprime o texto pronto;
+  a formatação não depende de banco nem de limiar e é testada por snapshot.
 - `farol/ingest.py`, `today.py`, `load.py`, `splits.py`, `state.py`,
   `calibration.py`, `daily_analysis.py` — os comandos.
 - `farol/state.py` — gera `reports/DAILY_STATE.md` a partir de
@@ -252,12 +256,18 @@ login no Garmin a cada execução só para montar essa parte.
 python -m unittest discover -s tests
 ```
 
-435 testes cobrindo TRIMP, CTL/ATL/TSB, a primitiva `Metric`, separação de
+439 testes cobrindo TRIMP, CTL/ATL/TSB, a primitiva `Metric`, separação de
 procedência, as análises, correlação, CUSUM, regularidade de sono, a camada
 de interpretação, a predição de prova e o dashboard HTML. A
 maioria roda sem rede e sem planilha, em bancos SQLite em memória; alguns
 testes de `farol_daily_state` (golden sample de 2026-09-02) rodam contra o
 `data/farol.db` real via `db.connect()`, de forma idempotente.
+
+Os Markdown de `DAILY_STATE.md` e `DAILY_ANALYSIS.md` têm snapshots gerados
+de uma fixture sintética (`tests/snapshots/`). Depois de uma mudança
+intencional no texto, regrave-os explicitamente com
+`FAROL_UPDATE_SNAPSHOTS=1 python -m unittest discover -s tests` e revise o
+diff — a atualização nunca acontece sozinha.
 
 ## Procedência dos dados
 

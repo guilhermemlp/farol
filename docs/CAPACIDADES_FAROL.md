@@ -71,7 +71,7 @@ Para cada domínio, o sistema informa estado, confiança, métricas, evidências
 
 ### 3.4 Convergência e interpretação
 
-O modelo sinaliza convergência quando dois ou mais domínios estão fora do padrão ao mesmo tempo. O relatório detalhado separa dados observados, interpretação e limitações; a camada `farol.interpretation` traduz a classificação já existente em linguagem natural e qualifica a força do sinal.
+O modelo sinaliza convergência quando dois ou mais domínios estão fora do padrão ao mesmo tempo. O relatório detalhado separa dados observados, interpretação e limitações; a camada `farol.interpretation` traduz a classificação já existente em linguagem natural e qualifica a força do sinal. Na leitura em linguagem, o núcleo autonômico só é considerado comprometido quando **dois ou mais** de HRV, FC de repouso, FC noturna e stress estão fora do padrão; um único campo é descrito como sinal isolado, nunca como deterioração sistêmica.
 
 No relatório diário existe ainda uma contagem mais fina de indicadores individuais simultaneamente fora do padrão. Essa contagem não deve ser confundida com a convergência entre domínios: dois campos de recuperação fora do padrão são dois sinais, mas continuam sendo um domínio.
 

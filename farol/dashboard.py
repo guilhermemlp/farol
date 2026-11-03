@@ -24,12 +24,11 @@ from datetime import date as _date
 from datetime import timedelta
 
 from . import (calibration_auto, changepoint, correlations, db, injuries,
-               interpretation, nutrition, race_log, race_prediction, state, today)
+               interpretation, nutrition, race_log, race_prediction, snapshot, state, today)
 from .analysis import weekly_load
 from .config import REPORTS_DIR, load_profile
 from .hrv_variability import hrv_cv
 from .labels import ROTULOS
-from .metrics import daily_metric, from_daily
 from .recovery import PESOS_PADRAO, recovery_index, recovery_label
 from .sleep_regularity import bedtime_regularity
 from .zones import heart_rate_zones
@@ -126,12 +125,10 @@ def build_context(conn, profile: dict, on_date: str) -> dict:
     converte para HTML e' render_html()."""
     ctx: dict = {"on_date": on_date, "profile": profile}
 
-    metricas = {campo: daily_metric(conn, campo, on_date) for campo in _METRICAS_RECUPERACAO}
-    metricas["sleep_score"] = daily_metric(conn, "sleep_score", on_date)
-    metricas["total_sleep_minutes"] = daily_metric(conn, "total_sleep_minutes", on_date)
-    metricas["avg_sleep_stress"] = daily_metric(conn, "avg_sleep_stress", on_date)
-    metricas["tsb"] = from_daily(conn, "tsb", on_date, higher_is_better=True, table="training_load")
-    vo2max = daily_metric(conn, "vo2max", on_date)
+    # Mesmo retrato do dia que farol.today monta (farol/snapshot.py) -- o
+    # dashboard nao mantem uma segunda lista de campos/tabelas.
+    metricas = snapshot.daily_metrics(conn, on_date)
+    vo2max = snapshot.vo2max_metric(conn, on_date)
 
     pesos = ((profile.get("recovery_index") or {}).get("weights")) or PESOS_PADRAO
     indice, notas = recovery_index(metricas, pesos)

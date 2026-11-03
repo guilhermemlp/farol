@@ -134,6 +134,23 @@ class TestLaggedCorrelation(unittest.TestCase):
         self.assertEqual(com_corte.n, baseline.n)
         self.assertAlmostEqual(com_corte.r, baseline.r, places=6)
 
+    def test_periodo_reportado_usa_a_ultima_data_realmente_emparelhada(self):
+        # Com lag=1, o X do ultimo dia do intervalo nao tem Y dentro do corte
+        # (Y cairia em ate+1). O periodo anunciado tem que terminar no ultimo
+        # X que de fato formou par -- nao no dia nominal do corte.
+        n_dias = 60
+        for i in range(n_dias):
+            self._insere(i, 50 + (i % 10), 60 - (i % 10))
+        self.conn.commit()
+
+        resultado = lagged_correlation(self.conn, "stress_avg", "sleep_score", lag_dias=1)
+        self.assertIsNotNone(resultado)
+        # Dia 0 nao tem baseline anterior (delta None) e dia 59 nao tem Y
+        # dentro do corte: sobram os dias 1..58.
+        self.assertEqual(resultado.d0, (self.base_date + timedelta(days=1)).isoformat())
+        self.assertEqual(resultado.d1, (self.base_date + timedelta(days=n_dias - 2)).isoformat())
+        self.assertEqual(resultado.n, n_dias - 2)
+
     def test_ate_none_preserva_comportamento_atual(self):
         # ate=None resolve para MAX(date) real -- nao existe linha alem
         # dele na tabela, entao o filtro novo do lado Y e' um no-op: o

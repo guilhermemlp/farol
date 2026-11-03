@@ -108,6 +108,18 @@ def _cenario_recuperacao_alerta():
         {"CARGA": _carga_ok(), "RECUPERACAO": rec, "SONO": _sono_ok()}, {"RECUPERACAO"}
 
 
+def _cenario_recuperacao_atencao_um_campo_nucleo():
+    # Um unico campo do nucleo em atencao NAO e' alteracao sistemica. Este e'
+    # o caso que fazia daily_analysis._conclusao dizer "Sim -- nucleo
+    # autonomico fora do padrao" enquanto interpretation.estado_fisiologico
+    # dizia "atencao concentrada": o bug de coerencia corrigido em 2026-11-03.
+    rec = _rec_ok()
+    rec["metricas"]["rhr"] = _m("atencao")
+    rec["status"] = "atencao"
+    return "RECUPERACAO em atencao puxada por 1 campo do nucleo (rhr)", \
+        {"CARGA": _carga_ok(), "RECUPERACAO": rec, "SONO": _sono_ok()}, {"RECUPERACAO"}
+
+
 def _cenario_tudo_normal():
     return "Tudo dentro do padrao", \
         {"CARGA": _carga_ok(), "RECUPERACAO": _rec_ok(), "SONO": _sono_ok()}, set()
@@ -124,6 +136,7 @@ _CENARIOS = [
     _cenario_carga_determinante_alterado,
     _cenario_carga_ok_contexto_ruim_mais_sono_alterado,
     _cenario_recuperacao_alerta,
+    _cenario_recuperacao_atencao_um_campo_nucleo,
     _cenario_tudo_normal,
     _cenario_carga_sem_dado_nao_conta_como_alterado,
 ]
@@ -189,6 +202,40 @@ class TestCoerenciaInterpretarCompleto(unittest.TestCase):
                 dominios_ok = [n for n, d in dominios.items() if d["status"] == "ok"]
                 for nome_dominio in dominios_ok:
                     self.assertNotIn(nome_dominio, leitura["sinal_dominante"])
+
+
+class TestNucleoAutonomico(unittest.TestCase):
+    """Definicao unica de nucleo comprometido (2+ campos), consumida por
+    interpretation e daily_analysis -- ver correcao de 2026-11-03."""
+
+    def test_um_campo_do_nucleo_nao_e_alteracao_sistemica(self):
+        _, dominios, _ = _cenario_recuperacao_atencao_um_campo_nucleo()
+        self.assertEqual(interp.nucleo_comprometido(dominios), ["rhr"])
+        self.assertFalse(interp.alteracao_sistemica(dominios))
+
+    def test_dois_campos_do_nucleo_sao_alteracao_sistemica(self):
+        rec = _rec_ok()
+        rec["metricas"]["hrv_avg"] = _m("atencao")
+        rec["metricas"]["rhr"] = _m("atencao")
+        rec["status"] = "atencao"
+        dominios = {"CARGA": _carga_ok(), "RECUPERACAO": rec, "SONO": _sono_ok()}
+        self.assertEqual(set(interp.nucleo_comprometido(dominios)), {"hrv_avg", "rhr"})
+        self.assertTrue(interp.alteracao_sistemica(dominios))
+
+    def test_periferico_sozinho_nunca_compromete_o_nucleo(self):
+        rec = _rec_ok()
+        rec["metricas"]["spo2_avg"] = _m("atencao")
+        rec["status"] = "atencao"
+        dominios = {"CARGA": _carga_ok(), "RECUPERACAO": rec, "SONO": _sono_ok()}
+        self.assertEqual(interp.nucleo_comprometido(dominios), [])
+        self.assertFalse(interp.alteracao_sistemica(dominios))
+
+    def test_conclusao_do_daily_analysis_nao_contradiz_a_leitura(self):
+        _, dominios, _ = _cenario_recuperacao_atencao_um_campo_nucleo()
+        texto = "\n".join(daily_analysis._conclusao(dominios, {}))
+        self.assertIn("Evidencia de deterioracao sistemica?** Nao", texto)
+        self.assertIn("sinal isolado em RECUPERACAO", texto)
+        self.assertNotIn("nucleo autonomico fora do padrao", texto)
 
 
 class TestCoerenciaDailyAnalysis(unittest.TestCase):

@@ -34,6 +34,40 @@ _ROTULO = {
 # que o nucleo comprometido (regra usada na vistoria para ler 04/09).
 _NUCLEO_RECUPERACAO = ("hrv_avg", "rhr", "night_hr_avg", "stress_avg")
 
+# Comprometimento do nucleo exige 2+ campos ao mesmo tempo (mesmo criterio
+# que estado_fisiologico ja aplicava). Um unico campo do nucleo em atencao e'
+# sinal isolado, nao alteracao sistemica -- ver alteracao_sistemica().
+_MIN_NUCLEO_COMPROMETIDO = 2
+
+
+def _nucleo_fora(metricas: dict) -> list[str]:
+    """Campos do nucleo autonomico com dado e status atencao/alerta, na ordem
+    fixa de _NUCLEO_RECUPERACAO. Fonte unica do calculo -- nao reclassifica
+    nada, so' le o status que farol.state ja produziu."""
+    return [c for c in _NUCLEO_RECUPERACAO
+            if (m := metricas.get(c)) is not None and m.has_data
+            and m.status in ("atencao", "alerta")]
+
+
+def nucleo_comprometido(dominios: dict) -> list[str]:
+    """Campos do nucleo autonomico fora do padrao pessoal hoje.
+
+    Publico porque `farol.daily_analysis` precisa da MESMA definicao usada
+    por `estado_fisiologico`/`conclusao`; antes repetia o calculo acessando
+    `_NUCLEO_RECUPERACAO` privado e, no caminho, usava `any` (1 campo ja'
+    contava como nucleo comprometido), contradizendo a leitura em
+    linguagem. Devolve lista vazia se o dominio RECUPERACAO nao existir.
+    """
+    metricas = (dominios.get("RECUPERACAO") or {}).get("metricas", {})
+    return _nucleo_fora(metricas)
+
+
+def alteracao_sistemica(dominios: dict) -> bool:
+    """True somente quando 2+ campos do nucleo autonomico estao fora do
+    padrao ao mesmo tempo -- o criterio documentado em estado_fisiologico.
+    Um campo isolado e' atencao concentrada, nao alteracao sistemica."""
+    return len(nucleo_comprometido(dominios)) >= _MIN_NUCLEO_COMPROMETIDO
+
 _ORDEM_STATUS = {"sem_dado": 0, "ok": 1, "atencao": 2, "alerta": 3}
 _STATUS_TXT = {"ok": "normal/estavel", "atencao": "atencao", "alerta": "alerta"}
 
@@ -93,9 +127,7 @@ def estado_fisiologico(dominios: dict) -> str:
       deterioracao sistemica (vistoria, 04/09).
     - nada fora do padrao -> normal/estavel.
     """
-    nucleo_fora = [c for c in _NUCLEO_RECUPERACAO
-                   for m in [dominios["RECUPERACAO"]["metricas"].get(c)]
-                   if m is not None and m.has_data and m.status in ("atencao", "alerta")]
+    nucleo_fora = nucleo_comprometido(dominios)
     alerta = [n for n, d in dominios.items() if d["status"] == "alerta"]
     atencao = [n for n, d in dominios.items() if d["status"] == "atencao"]
 
@@ -103,7 +135,7 @@ def estado_fisiologico(dominios: dict) -> str:
         return ("alerta -- dominio em ALERTA"
                 + (f" ({', '.join(alerta)})" if len(alerta) > 1 else f" ({alerta[0]})")
                 + ": resposta fora do padrao pessoal")
-    if len(nucleo_fora) >= 2:
+    if len(nucleo_fora) >= _MIN_NUCLEO_COMPROMETIDO:
         base = ("alteracao sistemica em curso -- nucleo autonomico comprometido"
                 f" ({', '.join(nucleo_fora)} fora do padrao ao mesmo tempo)")
         if len(atencao) >= 2:
@@ -152,9 +184,7 @@ def leitura_recuperacao(dominios: dict) -> str:
         return "sem dado suficiente para classificar"
     if d["status"] == "ok":
         return "preservada -- nucleo e campos complementares dentro do padrao"
-    nucleo_fora = [c for c in _NUCLEO_RECUPERACAO
-                   for m in [d["metricas"].get(c)]
-                   if m is not None and m.has_data and m.status in ("atencao", "alerta")]
+    nucleo_fora = _nucleo_fora(d["metricas"])
     periferico_fora = [c for c, m in d["metricas"].items()
                        if c not in _NUCLEO_RECUPERACAO and m.has_data
                        and m.status in ("atencao", "alerta")]
@@ -280,12 +310,10 @@ def conclusao(dominios: dict, performance: dict) -> str:
     sem prescrever. Deterioracao relevante exige nucleo autonomico fora ou
     convergencia forte -- um sinal de atencao isolado e' so isso."""
     sinais = sinais_por_dominio(dominios)
-    nucleo_fora = [c for c in _NUCLEO_RECUPERACAO
-                   for m in [dominios["RECUPERACAO"]["metricas"].get(c)]
-                   if m is not None and m.has_data and m.status in ("atencao", "alerta")]
+    nucleo_fora = nucleo_comprometido(dominios)
     alerta = [n for n, d in dominios.items() if d["status"] == "alerta"]
 
-    if alerta or len(nucleo_fora) >= 2:
+    if alerta or len(nucleo_fora) >= _MIN_NUCLEO_COMPROMETIDO:
         base = ("ha evidencia de alteracao relevante: nucleo autonomico fora do "
                 "padrao ou dominio em alerta")
     elif len(sinais) >= 2:

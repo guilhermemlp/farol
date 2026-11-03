@@ -13,7 +13,7 @@ import os
 import sys
 from datetime import date, timedelta
 
-from . import db, injuries, interpretation, nutrition, race_prediction, state
+from . import db, injuries, interpretation, nutrition, race_prediction, snapshot, state
 from .analysis import (
     aerobic_efficiency, continuous_mechanics, efficiency_verdict, hr_drift, interval_efficiency,
     interval_mechanics, mechanical_verdict, pace_consistency, weekly_load,
@@ -21,7 +21,7 @@ from .analysis import (
 from .config import load_profile
 from .hrv_variability import hrv_cv
 from .labels import ROTULOS
-from .metrics import Metric, daily_metric, from_daily
+from .metrics import Metric
 from .recovery import PESOS_PADRAO, recovery_index, recovery_label, recovery_status
 from .sleep_regularity import bedtime_regularity
 from .zones import heart_rate_zones
@@ -397,37 +397,10 @@ def main() -> None:
         conn.close()
         return
 
-    # Toda comparacao a partir daqui e contra a janela do proprio atleta.
-    metricas = {
-        "hrv_avg": daily_metric(conn, "hrv_avg", hoje_str),
-        "rhr": daily_metric(conn, "rhr", hoje_str),
-        "sleep_score": daily_metric(conn, "sleep_score", hoje_str),
-        "night_hr_avg": daily_metric(conn, "night_hr_avg", hoje_str),
-        "total_sleep_minutes": daily_metric(conn, "total_sleep_minutes", hoje_str),
-        "tsb": from_daily(conn, "tsb", hoje_str, higher_is_better=True, table="training_load"),
-        # Ja coletados pelo Garmin, so nunca lidos ate agora (parecer tecnico
-        # de 2026-09-04): entram no mesmo tratamento de confianca/convergencia
-        # que HRV, sem entrar em PESOS_PADRAO -- mesmo precedente que
-        # body_battery_max ja segue (no dominio, fora do indice).
-        "respiration_avg": daily_metric(conn, "respiration_avg", hoje_str),
-        "spo2_avg": daily_metric(conn, "spo2_avg", hoje_str),
-        "body_battery_min": daily_metric(conn, "body_battery_min", hoje_str),
-        # stress_avg ja estava em state._RECUPERACAO (DAILY_STATE.md) desde
-        # antes desta sessao, mas nunca tinha entrado no relatorio de
-        # terminal nem em detect_patterns -- lacuna real: estresse (diario e
-        # noturno) e' o sinal mais diretamente ligado ao achado clinico do
-        # usuario (resposta cardiovascular compativel com hiperatividade
-        # simpatica/atividade vagal reduzida, PROFILE.md), pedido
-        # explicitamente em 2026-09-04. avg_sleep_stress e' novo em
-        # qualquer lugar do farol -- estava capturado desde sempre
-        # (garmin_client/sheets/DIRECTION ja tinham a entrada), nunca lido.
-        # Os dois verificados contra o historico real antes de entrar aqui:
-        # 16% dos dias cada, mesma faixa normal de HRV/RHR -- nenhum dos
-        # dois tem o problema de volatilidade que tirou body_battery_min do
-        # dominio.
-        "stress_avg": daily_metric(conn, "stress_avg", hoje_str),
-        "avg_sleep_stress": daily_metric(conn, "avg_sleep_stress", hoje_str),
-    }
+    # Toda comparacao a partir daqui e contra a janela do proprio atleta. A
+    # montagem e' compartilhada com farol.dashboard (farol/snapshot.py): os
+    # dois relatorios mostram o mesmo retrato do dia, sem listas paralelas.
+    metricas = snapshot.daily_metrics(conn, hoje_str)
 
     # VO2max do Garmin: fica FORA de `metricas` de proposito, nao entra em
     # detect_patterns/recovery_index. E' um sinal lento (o Garmin so
@@ -438,7 +411,7 @@ def main() -> None:
     # comparavel ao VO2max do exame ergometrico (53,8 ml/kg/min) nem deve
     # ancorar nada -- so a tendencia contra a propria janela de 90d importa
     # (regra 6), por isso o rotulo diz "(Garmin)" sempre.
-    vo2max_metric = daily_metric(conn, "vo2max", hoje_str)
+    vo2max_metric = snapshot.vo2max_metric(conn, hoje_str)
 
     pesos = ((profile.get("recovery_index") or {}).get("weights")) or PESOS_PADRAO
     indice, notas = recovery_index(metricas, pesos)

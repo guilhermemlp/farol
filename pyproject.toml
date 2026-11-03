@@ -1,0 +1,55 @@
+[project]
+name = "farol"
+version = "0.1.0"
+description = "Sinal diário de recuperação e carga de treino a partir dos seus dados do Garmin."
+requires-python = ">=3.11"
+dependencies = [
+    "garminconnect>=0.2.24,<0.4",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.15",
+]
+
+[project.scripts]
+farol-ingest = "farol.ingest:main"
+farol-today = "farol.today:main"
+farol-splits = "farol.splits:main"
+farol-state = "farol.state:main"
+farol-daily-analysis = "farol.daily_analysis:main"
+farol-calibration = "farol.calibration:main"
+farol-calibration-auto = "farol.calibration_auto:main"
+farol-correlations = "farol.correlations:main"
+farol-calibration-review = "farol.calibration_review:main"
+farol-changepoint = "farol.changepoint:main"
+farol-decoupling = "farol.decoupling:main"
+farol-course = "farol.course:main"
+farol-race-conditions = "farol.race_conditions:main"
+farol-race-prediction = "farol.race_prediction:main"
+farol-dashboard = "farol.dashboard:main"
+farol-injuries = "farol.injuries:main"
+farol-race-log = "farol.race_log:main"
+farol-reconcile = "farol.reconcile:main"
+farol-strava-backfill = "farol.strava_backfill:main"
+farol-running-history = "farol.running_history:main"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+# Conjunto padrao do ruff (E4/E7/E9/F): erros de codigo e imports, nao
+# estilo. Nao ampliamos para E501 (linha longa) nem para regras de formato
+# fora do que o codigo ja segue -- a auditoria F8 pediu CI com ruff, nao
+# reformatacao do codigo existente.
+select = ["E4", "E7", "E9", "F"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["farol*"]

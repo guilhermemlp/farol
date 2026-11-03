@@ -1,0 +1,25 @@
+# Dados pessoais e saidas geradas -- nunca versionar
+data/
+reports/
+output/
+docs/PROFILE.md
+.agents/
+.claude/
+err.log
+=
+*.kml
+ANALISE_*.py
+RELATORIO_*.txt
+
+.venv/
+__pycache__/
+*.pyc
+.env
+.garmin_token/
+farol.db
+profile.yaml
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+farol.db.backup_*
+*.xlsx.backup_strava

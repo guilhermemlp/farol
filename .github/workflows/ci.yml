@@ -1,0 +1,39 @@
+name: CI
+
+# Auditoria F8: rodar `unittest` + `ruff` em todo push. Habilita o botão
+# "Checks" no GitHub: a suíte passa a rodar em ambiente limpo a cada push,
+# em vez de só na máquina local.
+#
+# Nota sobre dados: os testes golden (`TestGoldenSample` e afins) dependem do
+# `data/farol.db` real, que contém dados pessoais e NÃO é versionado
+# (gitignore). Num ambiente limpo sem o banco eles são PULADOS com mensagem
+# clara (tests/golden_support.py) -- o CI valida a lógica em bancos em
+# memória e deixa os golden para onde os dados reais existem.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Instala o pacote e dependencias de dev
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Testes (unittest)
+        run: python -m unittest discover -s tests

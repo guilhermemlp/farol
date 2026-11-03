@@ -41,6 +41,12 @@ _MIN_N = 30
 
 @dataclass(frozen=True)
 class Correlacao:
+    """Resultado de um par com defasagem.
+
+    `d0`/`d1` sao a primeira e a ultima data de X que efetivamente formaram
+    um par com Y dentro do corte -- nao o intervalo nominal consultado.
+    """
+
     campo_x: str
     campo_y: str
     lag_dias: int
@@ -107,10 +113,12 @@ def lagged_correlation(
     deltas_y = _deltas(conn, campo_y, tabela_y, datas_y_deslocadas)
 
     pares = []
+    datas_usadas = []
     for d in todas_datas:
         d_deslocada = (_date.fromisoformat(d) + timedelta(days=lag_dias)).isoformat()
         if d in deltas_x and d_deslocada in deltas_y:
             pares.append((deltas_x[d], deltas_y[d_deslocada]))
+            datas_usadas.append(d)
 
     if len(pares) < _MIN_N:
         return None
@@ -121,9 +129,13 @@ def lagged_correlation(
     except StatisticsError:
         return None
 
+    # d0/d1 sao as datas de X que realmente entraram em algum par -- nao o
+    # intervalo nominal [desde, ate]. Com lag > 0 o ultimo dia do intervalo
+    # nao tem Y dentro do corte e ficava anunciado como se tivesse sido
+    # usado, inflando o periodo reportado em `lag_dias`.
     return Correlacao(
         campo_x=campo_x, campo_y=campo_y, lag_dias=lag_dias,
-        r=round(r, 2), n=len(pares), d0=todas_datas[0], d1=todas_datas[-1],
+        r=round(r, 2), n=len(pares), d0=datas_usadas[0], d1=datas_usadas[-1],
     )
 
 

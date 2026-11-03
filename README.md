@@ -137,6 +137,9 @@ farol/
   extraído e recarrega o banco a partir dela.
 - `farol/metrics.py` — a primitiva `Metric`: todo valor sai com médias móveis,
   desvio, z-score, tendência e confiança. É o que substituiu os limiares fixos.
+- `farol/snapshot.py` — retrato diário de `Metric` compartilhado por
+  `farol.today` e `farol.dashboard`: mesma lista de campos, mesma escolha de
+  tabela (TSB em `training_load`, RHR em `daily`) e nenhum cálculo próprio.
 - `farol/analysis.py` — carga semanal com monotonia de Foster, e eficiência
   de corrida (indicador a pace fixo), em duas granularidades:
   - corrida contínua (longão, rodagem, tempo run) — `aerobic_efficiency` (FC)
@@ -249,7 +252,7 @@ login no Garmin a cada execução só para montar essa parte.
 python -m unittest discover -s tests
 ```
 
-348 testes cobrindo TRIMP, CTL/ATL/TSB, a primitiva `Metric`, separação de
+435 testes cobrindo TRIMP, CTL/ATL/TSB, a primitiva `Metric`, separação de
 procedência, as análises, correlação, CUSUM, regularidade de sono, a camada
 de interpretação, a predição de prova e o dashboard HTML. A
 maioria roda sem rede e sem planilha, em bancos SQLite em memória; alguns

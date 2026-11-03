@@ -376,12 +376,11 @@ def _conclusao(dominios: dict, performance: dict) -> list[str]:
                                           "row": None})
     deterioracao = leitura["deterioracao_sistemica"]
     sinais = interpretation.sinais_por_dominio(dominios)
-    metricas_rec = dominios["RECUPERACAO"]["metricas"]
-    nucleo_comprometido = any(
-        c in interpretation._NUCLEO_RECUPERACAO  # noqa: SLF001 -- leitura compartilhada
-        and metricas_rec.get(c) is not None and metricas_rec[c].has_data
-        and metricas_rec[c].status in ("atencao", "alerta")
-        for c in metricas_rec)
+    # Mesma definicao de alteracao sistemica usada por
+    # interpretation.estado_fisiologico/conclusao(): 2+ campos do nucleo
+    # autonomico fora do padrao. Antes esta funcao refazia o calculo com
+    # `any` (1 campo ja' bastava), contradizendo a leitura em linguagem.
+    nucleo_comprometido = interpretation.alteracao_sistemica(dominios)
     alerta = any(d["status"] == "alerta" for d in dominios.values())
 
     carga_ruim = dominios["CARGA"]["status"] in ("atencao", "alerta")

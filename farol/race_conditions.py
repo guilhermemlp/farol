@@ -9,7 +9,6 @@ Uso:
 """
 import argparse
 import json
-import math
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path

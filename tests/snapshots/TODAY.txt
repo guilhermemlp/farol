@@ -1,0 +1,113 @@
+
+==================================================================
+  ESTADO ATUAL — 2026-11-02
+==================================================================
+
+RESUMO
+  Como ler: confira confianca e sinais, depois tendencia e persistencia;
+  convergencia orienta revisao das evidencias, nao decide o que fazer.
+  Recuperacao: 2.7/10 — bem abaixo do seu normal
+  Treino hoje: running (alta) + strength training (baixa)
+  Atencao: 10 sinais simultaneamente fora do padrao: HRV, FC repouso, Sono, FC noturna, total_sleep_minutes, TSB, Respiracao, Body Battery min, Stress, Stress no sono
+
+  LEITURA:
+    Estado: alerta -- dominio em ALERTA (CARGA, RECUPERACAO, SONO): resposta fora do padrao pessoal
+    Sinal dominante: sinais em CARGA, RECUPERACAO, SONO: TSB, HRV, FC repouso, FC noturna, Stress, Respiracao, SpO2 minima, Duracao do sono, Tempo acordado, Sono profundo, Sono REM, Sleep score
+    Convergencia: forte -- 3 dominios, 12 sinais no total (CARGA: 1 sinal, RECUPERACAO: 6 sinais, SONO: 5 sinais)
+    Conclusao: ha evidencia de alteracao relevante: nucleo autonomico fora do padrao ou dominio em alerta
+  EVOLUCAO DOS DOMINIOS (tendencia de severidade, janela de 7 dias)
+    Dominio       Estado       Confianca   Streak       Tendencia
+    CARGA          ALERTA       alta        3d           ↑ piorando
+    RECUPERACAO    ALERTA       alta        6d           ↑ piorando
+    SONO           ALERTA       alta        10d          ↑ piorando
+    Convergencia: ativa (6d; ↑ piorando)
+    Nota: setas descrevem mudanca de severidade, nao recomendam treino.
+  Lesao (registro manual): Sem observacao manual registrada.
+
+------------------------------------------------------------------
+TREINO REALIZADO
+------------------------------------------------------------------
+  running: Rodagem
+  50 min | 10.20 km | pace 4.90 min/km
+  FC 150 bpm (Z3 ritmo) (max 174) | TRIMP 90 | exigencia ALTA
+  cadencia 176 spm | GCT 240 ms | oscilacao 8.1 cm
+
+  Tiros (4x ~800m):
+    1: 4.60 min/km | FC 160-168 | cad 176
+    2: 4.63 min/km | FC 161-169 | cad 177
+    3: 4.66 min/km | FC 162-170 | cad 178
+    4: 4.69 min/km | FC 163-171 | cad 179
+  Consistencia do pace: CV 0.7% (excelente)
+  Deriva de FC do 1o ao ultimo tiro: +3 bpm
+
+  strength_training: Forca
+  40 min
+
+------------------------------------------------------------------
+CARGA DE TREINO
+------------------------------------------------------------------
+  CTL 55.0 (forma)   ATL 57.0 (fadiga aguda)
+  TSB            -4 ▄▃▂█▇▆▅▃▂▁▇▆▅▄▃▂█▇▆▅▃▂▁▇▆▅▄▃▂▁ | normal 1.93 | z -1.60 | 7d = | ALERTA
+  ATL/CTL 1.04  (acima de 1 = carga aguda maior que a cronica)
+  VO2max (Garmin) sem dado
+
+  Semana                     km   sessoes  TRIMP  monotonia
+  2026-10-27 a 2026-11-02   10.2      1      0       -    <- semana atual
+  2026-10-20 a 2026-10-26    0.0      0      0       -  
+  2026-10-13 a 2026-10-19    0.0      0      0       -  
+  2026-10-06 a 2026-10-12    0.0      0      0       -  
+  2026-09-29 a 2026-10-05    0.0      0      0       -  
+  2026-09-22 a 2026-09-28    0.0      0      0       -  
+  2026-09-15 a 2026-09-21    0.0      0      0       -  
+  2026-09-08 a 2026-09-14    0.0      0      0       -  
+  Soma 14d 0  |  28d 0
+  (monotonia > 2.0 = carga sem contraste entre dias, marcador de risco)
+
+(Economia de corrida: analise quinzenal, proxima em 2026-11-15)
+
+------------------------------------------------------------------
+RECUPERACAO
+------------------------------------------------------------------
+  Indice 2.7/10 — bem abaixo do seu normal   (6.5 = exatamente na sua media)
+    Sono            3.3/10   peso 30%
+    HRV             0.0/10   peso 30%
+    FC repouso      5.3/10   peso 20%
+    TSB             3.3/10   peso 20%
+
+  HRV            34 ms ▄▅▇▄▆█▅▆█▅▇▄▅▇▄▆█▅▆█▅▇▄▅▇▄▆█▅▁ | normal 45.01 ms | z -3.47 | 7d = | ALERTA
+  HRV CV         10.7% (7d) | referencia 30d 8.3%
+  FC repouso     60 bpm ▅▅▆▇█▁▂▃▄▅▅▆▇█▁▂▃▄▅▅▆▇█▁▂▃▄▅▅▆ | normal 58 bpm | z +0.78 | 7d = | atencao
+  FC noturna     64 bpm ▆█▂▅▇▁▃▆█▂▅▇▁▃▆█▂▅▇▁▃▆█▂▅▇▁▃▆▇ | normal 61.97 bpm | z +1.02 | 7d = | atencao
+  Respiracao     15.4 rpm | normal 14.2 rpm | z +3.75 | 7d = | ALERTA
+  SpO2           96% | normal 95.85% | z +1.00 | 7d = | ok
+  Body Battery min 22 | normal 25.07 | z -0.62 | 7d = | atencao
+  Stress         24 | normal 22.01 | z +0.63 | 7d = | atencao
+
+------------------------------------------------------------------
+SONO
+------------------------------------------------------------------
+  Score          74/100 ▄▃▂█▇▆▅▃▂▁▇▆▅▄▃▂█▇▆▅▃▂▁▇▆▅▄▃▂▁ | normal 79.93/100 | z -1.60 | 7d = | ALERTA
+  Duracao        405 min | normal 429.6 min | z -1.40 | 7d = | atencao
+  Stress no sono 20 | normal 18 | z +0.78 | 7d = | atencao
+  Profundo       90 min (22%)
+  Leve           245 min (60%)
+  REM            78 min (19%)
+  Fragmentacao   0 despertares (0.0/h)
+  Qualidade      Boa
+
+------------------------------------------------------------------
+PADROES DETECTADOS (convergencia de 2+ indicadores)
+------------------------------------------------------------------
+  - 10 sinais simultaneamente fora do padrao: HRV, FC repouso, Sono, FC noturna, total_sleep_minutes, TSB, Respiracao, Body Battery min, Stress, Stress no sono
+  - HRV a 3.5 desvios do seu normal (confianca alta, 90 dias)
+  - Sono a 1.6 desvios do seu normal (confianca alta, 90 dias)
+  - TSB a 1.6 desvios do seu normal (confianca alta, 90 dias)
+  - Respiracao a 3.8 desvios do seu normal (confianca alta, 90 dias)
+
+==================================================================
+  Leitura retrospectiva contra seu historico; nao e diagnostico nem decisao de treino.
+  Convergencia e alerta estatistico para revisar evidencias, nao um oraculo.
+  Esta execucao le o banco local e nao consulta o Garmin. Atualize via farol.ingest;
+  ingestao depende de rede. Clima de percurso e' consulta externa separada (Open-Meteo).
+==================================================================
+

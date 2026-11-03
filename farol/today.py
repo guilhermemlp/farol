@@ -4,57 +4,33 @@ Relatório retrospectivo. Descreve o que aconteceu e como o corpo está em
 relação ao padrão do próprio atleta — nunca prescreve treino (PROFILE.md,
 regras 7 e 9: prescrição é do treinador).
 
+Este arquivo so' orquestra: coleta o contexto do dia (metricas, indice,
+classificacao, registro manual) e entrega a `farol.report_sections`, que
+monta as secoes de texto. As regras que decidem *o que* e' um padrao
+(`detect_patterns`, `signature_doenca`) continuam aqui; formatacao de secao
+mora no outro modulo.
+
 Nenhum limiar fisiológico mora aqui. Tudo passa por farol.metrics, que compara
 cada valor contra a janela móvel do próprio atleta. Se um número mágico
 aparecer neste arquivo de novo, é regressão.
 """
-import json
-import os
 import sys
-from datetime import date, timedelta
+from datetime import date
 
-from . import db, injuries, interpretation, nutrition, race_prediction, snapshot, state
-from .analysis import (
-    aerobic_efficiency, continuous_mechanics, efficiency_verdict, hr_drift, interval_efficiency,
-    interval_mechanics, mechanical_verdict, pace_consistency, weekly_load,
-)
+from . import db, injuries, interpretation, report_sections, snapshot, state
 from .config import load_profile
-from .hrv_variability import hrv_cv
-from .labels import ROTULOS
 from .metrics import Metric
-from .recovery import PESOS_PADRAO, recovery_index, recovery_label, recovery_status
-from .sleep_regularity import bedtime_regularity
-from .zones import heart_rate_zones
+from .recovery import PESOS_PADRAO, recovery_index
 
-# "Sono" fica local de proposito: aqui rotula a fatia do indice de
-# recuperacao (junto de HRV/FC repouso/TSB), nao o campo bruto -- ver
-# farol/labels.py.
-_ROTULO = {**ROTULOS, "sleep_score": "Sono", "avg_sleep_stress": "Stress no sono"}
-
-_MARCA = {"ok": "ok", "atencao": "atencao", "alerta": "ALERTA", "sem_dado": "sem dado"}
-_SETA = {"subindo": "^", "caindo": "v", "estavel": "=", "indefinido": "?"}
-
-# campo em analysis.py -> (rotulo, unidade, menor_e_melhor). Mesma direcao ja
-# usada em analysis.py::assess_deterioration_detected.
-_MECANICA = (
-    ("cadencia", "Cadencia", "spm", False),
-    ("gct", "Tempo de contato", "ms", True),
-    ("oscilacao", "Oscilacao vertical", "cm", True),
+# Compatibilidade: estes helpers de formatacao foram para report_sections,
+# mas continuam acessiveis por `farol.today` (testes e consumidores antigos).
+# Alias redundante e' reexport explicito para o ruff, nao import esquecido.
+from .report_sections import (
+    classify_workout_demand as classify_workout_demand,
+    resumo_atividades as resumo_atividades,
+    sparkline as sparkline,
+    zone_of as zone_of,
 )
-
-# Cor so no terminal (nunca em saida redirecionada/pipe -- um arquivo ou outro
-# programa lendo isto nao deve receber sequencia de escape) e respeitando a
-# convencao NO_COLOR (https://no-color.org/). So decora _MARCA/indice na
-# saida -- nao muda nenhum texto nem valor, so como ele aparece na tela.
-_USAR_COR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
-_COR = {"ok": "\033[32m", "atencao": "\033[33m", "alerta": "\033[31m"}
-_COR_RESET = "\033[0m"
-
-
-def _colorir(texto: str, status: str) -> str:
-    if not _USAR_COR or status not in _COR:
-        return texto
-    return f"{_COR[status]}{texto}{_COR_RESET}"
 
 
 # ---------------------------------------------------------------- contexto
@@ -101,17 +77,17 @@ def detect_patterns(metricas: dict[str, Metric]) -> list[str]:
     if len(marcadas) < 2:
         return []
 
-    nomes = [_ROTULO.get(k, k) for k, _ in marcadas]
+    nomes = [report_sections.ROTULOS_RELATORIO.get(k, k) for k, _ in marcadas]
     alertas = [f"{len(marcadas)} sinais simultaneamente fora do padrao: {', '.join(nomes)}"]
 
     for chave, m in marcadas:
         if m.status == "alerta":
             alertas.append(
-                f"{_ROTULO.get(chave, chave)} a {abs(m.z):.1f} desvios do seu normal "
-                f"(confianca {m.confidence}, {m.n_90d} dias)"
+                f"{report_sections.ROTULOS_RELATORIO.get(chave, chave)} a {abs(m.z):.1f} "
+                f"desvios do seu normal (confianca {m.confidence}, {m.n_90d} dias)"
             )
 
-    caindo = [_ROTULO.get(k, k) for k, m in metricas.items()
+    caindo = [report_sections.ROTULOS_RELATORIO.get(k, k) for k, m in metricas.items()
               if m.trend == "caindo" and m.higher_is_better and m.has_data]
     if len(caindo) >= 2:
         alertas.append(f"tendencia de queda em {' e '.join(caindo)} na ultima semana")
@@ -178,208 +154,14 @@ def signature_doenca(metricas: dict[str, Metric]) -> str | None:
     if tsb.status in ("atencao", "alerta"):
         return None
 
-    nomes = [_ROTULO.get(k, k) for k in marcados]
+    nomes = [report_sections.ROTULOS_RELATORIO.get(k, k) for k in marcados]
     return (f"padrao compativel com resposta imunologica ativa: {', '.join(nomes)} "
             f"fora do seu normal ao mesmo tempo, sem carga de treino recente elevada "
             f"(TSB {tsb.value:+.1f}, dentro do seu normal) -- nao e' diagnostico, so "
             f"descreve o padrao; qualquer coisa persistente e' avaliacao medica")
 
 
-# ------------------------------------------------------------------ treino
-
-def resumo_atividades(atividades: list[dict]) -> str:
-    """Uma linha com TODOS os treinos do dia, nao so o primeiro.
-
-    Um dia pode ter corrida de manha e pilates a noite, ou nenhum treino, ou
-    forca sem corrida nenhuma."""
-    return " + ".join(
-        f"{(act.get('type') or 'atividade').replace('_', ' ')} "
-        f"({classify_workout_demand(act).lower()})"
-        for act in atividades
-    )
-
-
-def zone_of(hr: float | None, faixas: list[dict]) -> str:
-    """Em que zona de FC um valor cai. Devolve string ja formatada para o
-    relatorio, vazia quando nao da para dizer.
-
-    Usa as zonas ancoradas no seu LTHR (farol.zones), nao percentuais genericos
-    de FC maxima."""
-    if not hr or not faixas:
-        return ""
-    for f in faixas:
-        if f["hr_min"] <= hr <= f["hr_max"]:
-            return f" ({f['zone']} {f['name'].lower()})"
-    if hr < faixas[0]["hr_min"]:
-        return " (abaixo de Z1)"
-    return f" ({faixas[-1]['zone']})"
-
-
-def classify_workout_demand(act: dict) -> str:
-    t = act.get("trimp") or 0
-    if t >= 100:
-        return "MUITO ALTA"
-    if t >= 70:
-        return "ALTA"
-    if t >= 40:
-        return "MODERADA"
-    return "BAIXA"
-
-
-def _texto_tendencia(trend: dict | None) -> str:
-    if not trend:
-        return "? dados insuficientes"
-    return {
-        "WORSENING": "↑ piorando",
-        "IMPROVING": "↓ melhorando",
-        "STABLE": "→ estável",
-        "INSUFFICIENT_DATA": "? dados insuficientes",
-    }.get(trend.get("direcao"), "? dados insuficientes")
-
-
-def _imprime_resumo_longitudinal(dados_estado: dict) -> None:
-    """Mostra status, confianca, streak e direcao ja calculados por state.gather()."""
-    print("  EVOLUCAO DOS DOMINIOS (tendencia de severidade, janela de 7 dias)")
-    print("    Dominio       Estado       Confianca   Streak       Tendencia")
-    for nome, dominio in dados_estado["dominios"].items():
-        rotulo, _ = state._LABEL[dominio["status"]]
-        streak = dominio["streak"]
-        streak_txt = f"{streak['dias']}d" if streak["dias"] else "—"
-        print(f"    {nome:<14} {rotulo:<12} {dominio['confianca']:<11} "
-              f"{streak_txt:<12} {_texto_tendencia(dominio['trend'])}")
-
-    status_por_dominio = {nome: dominio["status"]
-                          for nome, dominio in dados_estado["dominios"].items()}
-    convergencia = state.convergence(status_por_dominio)
-    streak = dados_estado["convergencia_streak"]
-    tendencia = _texto_tendencia(dados_estado["convergencia_trend"])
-    if convergencia:
-        persiste = f"{streak['dias']}d" if streak["dias"] else "sem streak"
-        print(f"    Convergencia: ativa ({persiste}; {tendencia})")
-    else:
-        print(f"    Convergencia: nao ativa hoje ({tendencia})")
-    print("    Nota: setas descrevem mudanca de severidade, nao recomendam treino.")
-
-
-# ------------------------------------------------------------- formatacao
-
-# Recomendacao 9 do parecer tecnico de 2026-09-04, reabrindo a exclusao de
-# "dashboard" da FASE 10 com uma distincao: isto e' formatacao de texto no
-# mesmo relatorio de terminal que ja existe, nao infraestrutura nova --
-# zero servidor, zero dependencia, zero tela propria.
-_BLOCOS_SPARK = "▁▂▃▄▅▆▇█"
-
-
-def sparkline(valores: list[float]) -> str:
-    """Sparkline Unicode (blocos de altura) de uma serie, escala min-max
-    linear -- pista visual de tendencia, nao grafico preciso. Serie vazia
-    devolve "". Serie com todos os valores iguais (sd=0, inclui 1 ponto so)
-    devolve o bloco do meio repetido, nunca erro de divisao por zero."""
-    if not valores:
-        return ""
-    lo, hi = min(valores), max(valores)
-    if hi == lo:
-        return _BLOCOS_SPARK[len(_BLOCOS_SPARK) // 2] * len(valores)
-    escala = len(_BLOCOS_SPARK) - 1
-    return "".join(
-        _BLOCOS_SPARK[round((v - lo) / (hi - lo) * escala)] for v in valores
-    )
-
-
-def _serie_recente(conn, column: str, on_date: str, table: str = "daily", dias: int = 30) -> list[float]:
-    """Ultimos `dias` valores nao-nulos de `column`, terminando em `on_date`
-    (inclusive) -- so para o sparkline visual, nao para estatistica.
-    Diferente de farol.metrics._window (que exclui o dia-alvo para nao
-    diluir a propria baseline), aqui o dia-alvo entra de proposito: o ponto
-    e' mostrar onde hoje cai dentro da forma recente, nao comparar hoje
-    contra uma media que o exclui. Buracos (dia sem medicao) sao omitidos,
-    nunca interpolados -- mesma regra de farol.longitudinal."""
-    inicio = (date.fromisoformat(on_date) - timedelta(days=dias - 1)).isoformat()
-    sql = (f"SELECT {column} AS v FROM {table} WHERE date >= ? AND date <= ? "
-           f"AND {column} IS NOT NULL ORDER BY date")
-    return [float(r["v"]) for r in conn.execute(sql, (inicio, on_date)).fetchall()]
-
-
-def linha_metrica(m: Metric, rotulo: str, unidade: str = "", spark: str = "") -> str:
-    if not m.has_data:
-        return f"  {rotulo:<14} sem dado"
-    valor_txt = f"{m.value:g}{unidade}" + (f" {spark}" if spark else "")
-    partes = [f"  {rotulo:<14} {valor_txt}"]
-    if m.mean_90d is not None:
-        partes.append(f"| normal {m.mean_90d:g}{unidade}")
-    if m.z is not None:
-        partes.append(f"| z {m.z:+.2f}")
-    partes.append(f"| 7d {_SETA[m.trend]}")
-    partes.append(f"| {_colorir(_MARCA[m.status], m.status)}")
-    if m.confidence != "alta":
-        partes.append(f"(confianca {m.confidence}, n={m.n_90d})")
-    return " ".join(partes)
-
-
-def _proxima_analise_quinzenal(hoje: date) -> date:
-    """Proximo dia 1 ou 15 do mes -- so usado para o aviso quando a secao de
-    economia de corrida nao aparece hoje."""
-    if hoje.day < 15:
-        return hoje.replace(day=15)
-    if hoje.month == 12:
-        return date(hoje.year + 1, 1, 1)
-    return date(hoje.year, hoje.month + 1, 1)
-
-
-def _imprime_mecanica(conn, hoje_str: str, titulo: str, funcao_analise) -> None:
-    """Secao de economia mecanica (cadencia/tempo de contato/oscilacao
-    vertical), usando `funcao_analise(conn, hoje_str, campo)` --
-    `interval_mechanics` (tiro) ou `continuous_mechanics` (corrida inteira)."""
-    linhas = []
-    for campo, nome, unidade, menor_e_melhor in _MECANICA:
-        blocos_m = funcao_analise(conn, hoje_str, campo)
-        if blocos_m:
-            linhas.append((nome, unidade, menor_e_melhor, blocos_m))
-    if not linhas:
-        return
-    print("-" * 66)
-    print(titulo)
-    print("-" * 66)
-    for nome, unidade, menor_e_melhor, blocos_m in linhas:
-        print(f"  {nome}:")
-        for b in blocos_m:
-            print(f"    {b.rotulo:<16} {b.valor_ref:.1f} +/- {b.erro_padrao:.1f} {unidade} "
-                  f"a {b.pace_ref:.2f} min/km   (n={b.n}, {b.d0} a {b.d1})")
-        veredito_m = mechanical_verdict(blocos_m, nome.lower(), unidade, menor_e_melhor)
-        if veredito_m:
-            print(f"    -> {veredito_m}")
-    print()
-
-
-# F9 (auditoria): nome do endpoint do Garmin -> campos do relatorio que ele
-# alimenta. Usado para transformar `daily.errors` (gravado pelo ingest quando
-# o _safe captura uma falha) em aviso legivel: "hoje veio sem SpO2: endpoint
-# get_stats falhou" em vez de um campo vazio sem explicacao.
-_ENDPOINT_CAMPOS = {
-    "get_stats": "passos, calorias, FC repouso, stress, Body Battery, SpO2, hidratacao",
-    "get_sleep_data": "sono (duracao, fases, score)",
-    "get_hrv_data": "HRV",
-    "get_training_status": "VO2max e status de treino",
-    "get_training_readiness": "prontidao para treino",
-    "get_respiration_data": "respiracao",
-}
-
-
-def avisos_erros_sync(errors: str | None) -> list[str]:
-    """F9: `daily.errors` -> lista de avisos legiveis para o relatorio.
-
-    Um dia pode ter mais de um endpoint falho (separados por '; '); cada um
-    vira um aviso dizendo o que ficou sem dado e por que. None/vazio devolve
-    lista vazia -- dia sincronizado por inteiro nao gera aviso."""
-    if not errors:
-        return []
-    avisos = []
-    for nome in (e.strip() for e in errors.split(";") if e.strip()):
-        campos = _ENDPOINT_CAMPOS.get(nome, "dados")
-        avisos.append(f"sincronizacao incompleta: {campos} vieram sem dado "
-                      f"(endpoint {nome} falhou no Garmin)")
-    return avisos
-
+# ---------------------------------------------------------------- orquestracao
 
 def main() -> None:
     try:
@@ -424,68 +206,9 @@ def main() -> None:
     atividades = [dict(a) for a in conn.execute(
         "SELECT * FROM activities WHERE date = ? ORDER BY activity_id", (hoje_str,)).fetchall()]
 
-    L = "=" * 66
-    print(f"\n{L}\n  ESTADO ATUAL — {hoje_str}\n{L}\n")
-
-    # ---------------------------------------------------------- resumo
-    print("RESUMO")
-    print("  Como ler: confira confianca e sinais, depois tendencia e persistencia;")
-    print("  convergencia orienta revisao das evidencias, nao decide o que fazer.")
-    if indice is not None:
-        status_indice = recovery_status(indice)
-        print(f"  Recuperacao: {_colorir(f'{indice}/10', status_indice)} — {recovery_label(indice)}")
-    else:
-        print("  Recuperacao: sem dado suficiente para calcular")
-    if prova:
-        print(f"  Prova: {prova['nome']} em {prova['dias']} dias — fase de {prova['fase']}")
-        # F1 (auditoria): pace-alvo estimado da prova recente mais proxima, se
-        # houver ancora observada em profile.yaml -> recent_races. Descritivo,
-        # nao prescricao (PROFILE.md regra 9) -- mostra o numero e o TSB atual,
-        # e para ai. Mesma etica do resto do farol: sem ancora, nao chuta.
-        if prova.get("distancia_km"):
-            refs = race_prediction.reference_races(profile)
-            provas = race_prediction.observed_performances(conn, [r["date"] for r in refs])
-            if provas:
-                ancora = max(provas, key=lambda p: p["date"])
-                pred = race_prediction.predict(
-                    ancora["distance_km"], ancora["duration_min"], prova["distancia_km"])
-                print(f"  Previsao da meia: {race_prediction._fmt_tempo(pred['min'])} "
-                      f"a {race_prediction._fmt_tempo(pred['max'])} "
-                      f"(faixa entre Riegel/Cameron/VDOT; nao e intervalo de confianca, "
-                      f"ancora {ancora['date']})")
-                tsb = race_prediction.tsb_mais_recente(conn, hoje_str)
-                if tsb:
-                    print(f"  TSB hoje: {tsb['tsb']:+.1f} (alvo conceitual no dia da "
-                          f"prova: descansado/positivo -- decisao do treinador)")
-                plan = nutrition.build_plan(
-                    (pred["min"] + pred["max"]) / 2, nutrition.config_from_profile(profile),
-                    (profile.get("race") or {}).get("start_time"))
-                print(f"  Nutricao configurada: {len(plan['events'])} gel(is), "
-                      f"{plan['total_carbs_g']:.0f} g carboidrato e "
-                      f"{plan['total_caffeine_mg']:.0f} mg de cafeina em gel "
-                      f"(agua junto aos geis).")
-    if atividades:
-        print(f"  Treino hoje: {resumo_atividades(atividades)}")
-    else:
-        print("  Treino hoje: nenhum registrado")
-    if doenca:
-        print(f"  {_colorir('Atencao:', 'atencao')} {doenca}")
-    elif padroes:
-        print(f"  {_colorir('Atencao:', 'atencao')} {padroes[0]}")
-    conf_baixa = [_ROTULO.get(k, k) for k, m in metricas.items() if m.confidence == "baixa"]
-    if conf_baixa:
-        print(f"  Confianca baixa em: {', '.join(conf_baixa)}")
-    # F9: falha de endpoint nao e' estado fisiologico -- e' cobertura de dado.
-    # O aviso explica por que um campo apareceu vazio no relatorio, senao o
-    # "sem dado" parece ausencia real de medicao. Mesma secao do RESUMO, mas
-    # nunca vira padrao/doenca nem entram no indice.
-    for aviso in avisos_erros_sync(daily.get("errors")):
-        print(f"  {_colorir('Atencao:', 'atencao')} {aviso}")
-    # Leitura compacta em linguagem (farol.interpretation) -- mesmo texto da
-    # secao 11 do DAILY_ANALYSIS.md, derivado da MESMA classificacao de
-    # farol.state (state.gather le farol_daily_state; as metricas detalhadas
-    # acima leem `daily` -- sao duas superfícies, e a leitura usa a
-    # classificacao por dominio, fonte unica dos relatorios).
+    # Classificacao por dominio (fonte unica dos relatorios) e leitura em
+    # linguagem. `daily_metric` acima le `daily`; a leitura usa
+    # farol_daily_state -- duas superficies, uma unica classificacao.
     leitura = None
     dados_estado = None
     try:
@@ -493,261 +216,20 @@ def main() -> None:
         leitura = interpretation.interpretar(dados_estado)
     except ValueError:
         leitura = None
-    if leitura:
-        print()
-        print("  LEITURA:")
-        print(f"    Estado: {leitura['estado_fisiologico']}")
-        print(f"    Sinal dominante: {leitura['sinal_dominante']}")
-        print(f"    Convergencia: {leitura['convergencia']}")
-        print(f"    Conclusao: {leitura['conclusao']}")
-    if dados_estado:
-        _imprime_resumo_longitudinal(dados_estado)
+
     injury = injuries.latest_observation(hoje_str)
     injury_alert = injuries.observation_alert(injury)
-    print(f"  Lesao (registro manual): {injuries.observation_text(injury)}")
-    if injury_alert:
-        print(f"  {_colorir('Alerta:', 'atencao')} {injury_alert}")
-    print()
 
-    # ---------------------------------------------------------- treino
-    if atividades:
-        print("-" * 66)
-        print("TREINO REALIZADO")
-        print("-" * 66)
-        faixas = heart_rate_zones(profile)
-        for act in atividades:
-            print(f"  {act['type'] or 'atividade'}: {act['name'] or '(sem nome)'}")
-
-            # Nem toda atividade percorre distancia: pilates vem com 0.0 e
-            # breathwork com NULL, e 0.0 e falsy em Python. Condicionar a
-            # duracao a ter quilometro fazia uma sessao de 60 min de pilates
-            # aparecer sem duracao nenhuma.
-            partes = []
-            if act.get("duration_min"):
-                partes.append(f"{act['duration_min']:.0f} min")
-            if act.get("distance_km"):
-                partes.append(f"{act['distance_km']:.2f} km")
-                if act.get("duration_min"):
-                    partes.append(f"pace {act['duration_min'] / act['distance_km']:.2f} min/km")
-            if partes:
-                print("  " + " | ".join(partes))
-
-            if act.get("avg_hr"):
-                zona = zone_of(act["avg_hr"], faixas)
-                print(f"  FC {act['avg_hr']} bpm{zona} (max {act.get('max_hr') or '—'}) "
-                      f"| TRIMP {act.get('trimp') or 0:.0f} | exigencia {classify_workout_demand(act)}")
-            # Biomecanica so existe de fato em corrida, e mesmo la nem todo
-            # campo vem. O Garmin devolve cadencia de 0,3 spm em pilates e NULL
-            # em GCT/oscilacao -- imprimir "GCT 0 ms" seria inventar uma medicao
-            # que nao houve (licao do BUGS.md do AthletIQ: 0 nunca substitui
-            # ausente). Nenhuma cadencia humana fica abaixo de 50 spm.
-            bio = []
-            if (act.get("avg_cadence") or 0) > 50:
-                bio.append(f"cadencia {act['avg_cadence']:.0f} spm")
-            if act.get("ground_contact_time"):
-                bio.append(f"GCT {act['ground_contact_time']:.0f} ms")
-            if act.get("vertical_oscillation"):
-                bio.append(f"oscilacao {act['vertical_oscillation']:.1f} cm")
-            if bio:
-                print("  " + " | ".join(bio))
-
-            # Tiros vem do banco, gravados pelo ingest -- antes o relatorio fazia
-            # login no Garmin toda vez so para montar este bloco. O filtro por
-            # tipo e a checagem de forma existem porque a planilha herdada tem
-            # conteudo antigo nesta coluna para pilates e forca.
-            resumo = None
-            if act.get("type") == "running" and act.get("splits"):
-                try:
-                    dados = json.loads(act["splits"])
-                    if isinstance(dados, dict) and dados.get("reps"):
-                        resumo = dados
-                except (ValueError, TypeError):
-                    resumo = None
-            if resumo:
-                    print(f"\n  Tiros ({resumo['n_reps']}x ~{resumo['avg_distance_km']*1000:.0f}m):")
-                    for j, r in enumerate(resumo["reps"], 1):
-                        print(f"    {j}: {r['pace_min_km']:.2f} min/km | FC {r['avg_hr']:.0f}"
-                              f"-{r['max_hr']:.0f} | cad {r['avg_cadence']:.0f}")
-                    cons = pace_consistency(resumo["reps"])
-                    if cons:
-                        cv, rot = cons
-                        print(f"  Consistencia do pace: CV {cv}% ({rot})")
-                    drift = hr_drift(resumo["reps"])
-                    if drift is not None:
-                        print(f"  Deriva de FC do 1o ao ultimo tiro: {drift:+d} bpm")
-            print()
-
-    # ------------------------------------------------------ carga e estado
-    print("-" * 66)
-    print("CARGA DE TREINO")
-    print("-" * 66)
-    if tl:
-        print(f"  CTL {tl['ctl']:.1f} (forma)   ATL {tl['atl']:.1f} (fadiga aguda)")
-    print(linha_metrica(metricas["tsb"], "TSB", spark=sparkline(
-        _serie_recente(conn, "tsb", hoje_str, table="training_load"))))
-
-    if tl and tl["ctl"]:
-        print(f"  ATL/CTL {tl['atl'] / tl['ctl']:.2f}  (acima de 1 = carga aguda "
-              f"maior que a cronica)")
-    print(linha_metrica(vo2max_metric, "VO2max (Garmin)", " ml/kg/min"))
-
-    # 8 semanas, nao 4: com janela curta a semana leve de 06/08 fica de fora e a
-    # progressao parece um salto de 53%, quando contra o patamar de julho e 16%.
-    semanas = weekly_load(conn, hoje_str, semanas=8)
-    if semanas:
-        print()
-        print("  Semana                     km   sessoes  TRIMP  monotonia")
-        for i, s in enumerate(semanas):
-            mono = f"{s['monotonia']:.2f}" if s["monotonia"] is not None else "  -  "
-            marca = "  <- semana atual" if i == 0 else ""
-            if (s["monotonia"] or 0) > 2.0:
-                marca = "  <- repetitiva"
-            # Mostra o intervalo inteiro: so a data de inicio dava a impressao de
-            # que os dados paravam ali, quando a linha ja inclui hoje.
-            print(f"  {s['inicio']} a {s['fim']}  {s['km']:5.1f}  {s['sessoes']:5d}  "
-                  f"{s['trimp']:5d}     {mono}{marca}")
-
-        atual = semanas[0]["trimp"]
-        media4 = sum(x["trimp"] for x in semanas[:4]) / 4
-        if media4:
-            print()
-            print(f"  Carga 7d {atual}  |  media semanal das 4 ultimas {media4:.0f}"
-                  f"  |  razao {atual / media4:.2f}")
-        print(f"  Soma 14d {sum(x['trimp'] for x in semanas[:2])}  |  "
-              f"28d {sum(x['trimp'] for x in semanas[:4])}")
-        print("  (monotonia > 2.0 = carga sem contraste entre dias, marcador de risco)")
-    print()
-
-    # Regra 6 do PROFILE.md: tendencia de semanas importa mais que alteracao
-    # isolada. Essas comparacoes (primeira vs segunda metade do historico)
-    # mudam pouco de um dia para o outro -- olhar todo dia so acrescenta
-    # ruido, entao aparecem quinzenalmente (dias 1 e 15), nao a cada corrida.
-    if hoje.day in (1, 15):
-        # Regra 5 do PROFILE.md: pace x FC acompanha evolucao melhor que o
-        # VO2max do relogio. FC lida sempre no mesmo pace de referencia,
-        # senao um bloco de treinos fortes "melhora" o indicador sem ganho
-        # nenhum de forma.
-        blocos = aerobic_efficiency(conn, hoje_str)
-        if blocos:
-            print("-" * 66)
-            print("EFICIENCIA AEROBICA")
-            print("-" * 66)
-            for b in blocos:
-                print(f"  {b.rotulo:<16} FC {b.valor_ref:.1f} +/- {b.erro_padrao:.1f} bpm "
-                      f"a {b.pace_ref:.2f} min/km   (n={b.n}, {b.d0} a {b.d1})")
-            veredito = efficiency_verdict(blocos)
-            if veredito:
-                print(f"  -> {veredito}")
-            print()
-
-        # Mesma regra 5, mas tiro a tiro em vez de corrida inteira -- mais
-        # denso na faixa de esforco forte (analysis.py::interval_efficiency).
-        blocos_tiro = interval_efficiency(conn, hoje_str)
-        if blocos_tiro:
-            print("-" * 66)
-            print("EFICIENCIA EM TIRO")
-            print("-" * 66)
-            for b in blocos_tiro:
-                print(f"  {b.rotulo:<16} FC {b.valor_ref:.1f} +/- {b.erro_padrao:.1f} bpm "
-                      f"a {b.pace_ref:.2f} min/km   (n={b.n}, {b.d0} a {b.d1})")
-            veredito_tiro = efficiency_verdict(blocos_tiro)
-            if veredito_tiro:
-                print(f"  -> {veredito_tiro}")
-            print()
-
-        # Mesma ideia, lado mecanico: economia de corrida por cadencia/tempo
-        # de contato/oscilacao vertical. Ortogonal a economia cardiaca. Em
-        # tiro (nunca recuperacao/caminhada -- analysis.py::_interval_reps)
-        # e em corrida continua (longao, rodagem -- analysis.py::_runs).
-        _imprime_mecanica(conn, hoje_str, "ECONOMIA DE CORRIDA (MECANICA, EM TIRO)",
-                           interval_mechanics)
-        _imprime_mecanica(conn, hoje_str, "ECONOMIA DE CORRIDA (MECANICA, CONTINUA)",
-                           continuous_mechanics)
-    else:
-        proxima = _proxima_analise_quinzenal(hoje)
-        print(f"(Economia de corrida: analise quinzenal, proxima em {proxima.isoformat()})")
-        print()
-
-    print("-" * 66)
-    print("RECUPERACAO")
-    print("-" * 66)
-    if indice is not None:
-        status_indice = recovery_status(indice)
-        print(f"  Indice {_colorir(f'{indice}/10', status_indice)} — {recovery_label(indice)}"
-              "   (6.5 = exatamente na sua media)")
-        for chave, nota in notas.items():
-            peso = pesos.get(chave, 0)
-            texto = f"{nota}/10" if nota is not None else "sem dado"
-            print(f"    {_ROTULO.get(chave, chave):<12} {texto:>9}   peso {peso:.0%}")
-        print()
-    print(linha_metrica(metricas["hrv_avg"], "HRV", " ms",
-                         spark=sparkline(_serie_recente(conn, "hrv_avg", hoje_str))))
-    # Sinal diferente da media acima: CV colapsando (ficando artificialmente
-    # estavel) e' indicador precoce de overreaching nao-funcional na
-    # literatura (Plews & Buchheit), as vezes antes da media cair. Sem
-    # bucket/limiar de proposito -- ver farol/hrv_variability.py.
-    cv = hrv_cv(conn, hoje_str)
-    if cv is not None:
-        ref = f"{cv['cv_30d']:.1f}%" if cv["cv_30d"] is not None else "sem dado"
-        print(f"  {'HRV CV':<14} {cv['cv_7d']:.1f}% (7d) | referencia 30d {ref}")
-    print(linha_metrica(metricas["rhr"], "FC repouso", " bpm",
-                         spark=sparkline(_serie_recente(conn, "rhr", hoje_str))))
-    print(linha_metrica(metricas["night_hr_avg"], "FC noturna", " bpm",
-                         spark=sparkline(_serie_recente(conn, "night_hr_avg", hoje_str))))
-    print(linha_metrica(metricas["respiration_avg"], "Respiracao", " rpm"))
-    print(linha_metrica(metricas["spo2_avg"], "SpO2", "%"))
-    print(linha_metrica(metricas["body_battery_min"], "Body Battery min", ""))
-    print(linha_metrica(metricas["stress_avg"], "Stress", ""))
-    print()
-
-    # ------------------------------------------------------------- sono
-    print("-" * 66)
-    print("SONO")
-    print("-" * 66)
-    print(linha_metrica(metricas["sleep_score"], "Score", "/100",
-                         spark=sparkline(_serie_recente(conn, "sleep_score", hoje_str))))
-    print(linha_metrica(metricas["total_sleep_minutes"], "Duracao", " min"))
-    print(linha_metrica(metricas["avg_sleep_stress"], "Stress no sono", ""))
-    total = daily.get("total_sleep_minutes")
-    if total:
-        for campo, rotulo in (("deep_sleep_minutes", "Profundo"),
-                              ("light_sleep_minutes", "Leve"),
-                              ("rem_sleep_minutes", "REM")):
-            v = daily.get(campo)
-            if v is not None:
-                print(f"  {rotulo:<14} {v:.0f} min ({v / total * 100:.0f}%)")
-        desp = daily.get("awakenings")
-        if desp is not None:
-            print(f"  {'Fragmentacao':<14} {desp} despertares ({desp / (total / 60):.1f}/h)")
-    if daily.get("sleep_quality"):
-        print(f"  {'Qualidade':<14} {daily['sleep_quality']}")
-    # Informativo, sem z-score/streak de proposito: e' uma janela movel de 14
-    # dias, fortemente autocorrelacionada dia a dia -- alimentar isto em
-    # detect_patterns/longitudinal inflaria "dias consecutivos ruins" so pela
-    # sobreposicao da janela, nao por evidencia independente repetida
-    # (achado ao validar contra o historico real). So o numero, como
-    # contexto -- sem bucket ok/atencao/alerta.
-    regularidade = bedtime_regularity(conn, hoje_str)
-    if regularidade is not None:
-        print(f"  {'Regularidade':<14} {regularidade:.0f} min de SD no horario de dormir (14d)")
-    print()
-
-    # ---------------------------------------------------------- padroes
-    todos_padroes = ([doenca] if doenca else []) + padroes
-    if todos_padroes:
-        print("-" * 66)
-        print("PADROES DETECTADOS (convergencia de 2+ indicadores)")
-        print("-" * 66)
-        for p in todos_padroes:
-            print(f"  - {p}")
-        print()
-
-    print(L)
-    print("  Leitura retrospectiva contra seu historico; nao e diagnostico nem decisao de treino.")
-    print("  Convergencia e alerta estatistico para revisar evidencias, nao um oraculo.")
-    print("  Esta execucao le o banco local e nao consulta o Garmin. Atualize via farol.ingest;")
-    print("  ingestao depende de rede. Clima de percurso e' consulta externa separada (Open-Meteo).")
-    print(L + "\n")
+    ctx = report_sections.ReportContext(
+        conn=conn, hoje=hoje, hoje_str=hoje_str, profile=profile,
+        metricas=metricas, vo2max_metric=vo2max_metric,
+        indice=indice, notas=notas, pesos=pesos,
+        padroes=padroes, doenca=doenca, prova=prova,
+        tl=tl, daily=daily, atividades=atividades,
+        dados_estado=dados_estado, leitura=leitura,
+        injury=injury, injury_alert=injury_alert,
+    )
+    print(report_sections.render_report(ctx), end="")
 
     conn.close()
 

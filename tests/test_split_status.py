@@ -2,9 +2,9 @@ import json
 import sqlite3
 import unittest
 
-from farol import db
-from farol.ingest import sync_activity_splits
-from farol.splits import historical_splits_status, split_retry_candidates
+from farol.core import db
+from farol.pipeline.ingest import sync_activity_splits
+from farol.pipeline.splits import historical_splits_status, split_retry_candidates
 
 
 def _memory_db() -> sqlite3.Connection:

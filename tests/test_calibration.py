@@ -1,4 +1,4 @@
-"""Testes de farol.calibration: geracao da entrada diaria (build_entry) e
+"""Testes de farol.insights.calibration: geracao da entrada diaria (build_entry) e
 persistencia append-only do log (append_entry). Fase 12 -- CALIBRACAO.md."""
 import sqlite3
 import tempfile
@@ -6,8 +6,9 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
-from farol import calibration, db
-from farol.daily_state_builder import build_daily_state
+from farol.core import db
+from farol.insights import calibration
+from farol.domain.daily_state_builder import build_daily_state
 
 _PROFILE = {"recovery_index": {"weights": {
     "sleep_score": 0.30, "hrv_avg": 0.30, "rhr": 0.20, "tsb": 0.20,
@@ -25,8 +26,8 @@ class TestBuildEntry(unittest.TestCase):
     """Baseline com variacao ciclica (mesmo truque de test_longitudinal.py,
     para sd_90d != 0 e o indice/z sairem calculados, nao 'sem dado').
     Sem activities/training_load de proposito: CARGA fica sem_dado, o mesmo
-    comportamento ja coberto por farol.state e farol.longitudinal -- este
-    teste so confirma que farol.calibration LE esse resultado corretamente,
+    comportamento ja coberto por farol.domain.state e farol.domain.longitudinal -- este
+    teste so confirma que farol.insights.calibration LE esse resultado corretamente,
     nao recalcula nada."""
 
     def setUp(self):
@@ -69,7 +70,7 @@ class TestBuildEntry(unittest.TestCase):
 
     def test_carga_sem_training_load_fica_sem_dado(self):
         # Nenhuma linha em training_load nesta fixture -- mesmo comportamento
-        # de farol.state, so confirmando que build_entry nao inventa dado.
+        # de farol.domain.state, so confirmando que build_entry nao inventa dado.
         entry = calibration.build_entry(self.conn, self.base_date.isoformat(), _PROFILE)
         self.assertEqual(entry["dominios"]["CARGA"], "SEM DADO")
 
@@ -103,7 +104,7 @@ class TestBuildEntry(unittest.TestCase):
     def test_render_entry_contem_todas_as_secoes(self):
         entry = calibration.build_entry(self.conn, self.base_date.isoformat(), _PROFILE)
         texto = calibration.render_entry(entry)
-        for secao in ("DATA:", "FAROL (state.gather + farol.today)", "GARMIN (segundo juiz",
+        for secao in ("DATA:", "FAROL (state.gather + farol.reports.today)", "GARMIN (segundo juiz",
                       "LONGITUDINAL", "PERCEPCAO REAL", "BATEU COM A REALIDADE?", "OBSERVACOES:"):
             self.assertIn(secao, texto)
 

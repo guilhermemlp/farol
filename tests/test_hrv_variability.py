@@ -1,10 +1,10 @@
-"""Testes de farol.hrv_variability: CV do HRV em janela movel."""
+"""Testes de farol.domain.hrv_variability: CV do HRV em janela movel."""
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db
-from farol.hrv_variability import hrv_cv
+from farol.core import db
+from farol.domain.hrv_variability import hrv_cv
 
 
 class TestHrvCv(unittest.TestCase):

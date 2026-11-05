@@ -2,10 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from farol import db, sheets
-from farol.daily_state_builder import build_daily_state
-from farol.reconcile import reconcile
-from farol.training_load import recompute_training_load
+from farol.core import db
+from farol.pipeline import sheets
+from farol.domain.daily_state_builder import build_daily_state
+from farol.pipeline.reconcile import reconcile
+from farol.domain.training_load import recompute_training_load
 
 
 class TestReconcile(unittest.TestCase):

@@ -3,8 +3,8 @@
 import sqlite3
 import unittest
 
-from farol.db import ensure_schema
-from farol.running_history import build_report
+from farol.core.db import ensure_schema
+from farol.insights.running_history import build_report
 
 
 class TestRunningHistory(unittest.TestCase):

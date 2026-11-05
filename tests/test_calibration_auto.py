@@ -4,7 +4,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from farol import calibration_auto, db
+from farol.core import db
+from farol.insights import calibration_auto
 
 
 def _memory_db() -> sqlite3.Connection:
@@ -25,15 +26,15 @@ class TestCalibrationAuto(unittest.TestCase):
         self.conn.close()
 
     def test_respeita_data_de_corte(self):
-        with patch("farol.calibration_auto.calibration._indice_do_dia", return_value=(6.5, "", {})), \
-             patch("farol.calibration_auto.daily_metric", return_value=SimpleNamespace(status="ok")):
+        with patch("farol.insights.calibration_auto.calibration._indice_do_dia", return_value=(6.5, "", {})), \
+             patch("farol.insights.calibration_auto.daily_metric", return_value=SimpleNamespace(status="ok")):
             pairs = calibration_auto.paired_days(self.conn, {}, "2026-09-01")
         self.assertEqual(pairs, [calibration_auto.Pair("2026-09-01", "ok", "ok")])
 
     def test_relatorio_nao_altera_banco(self):
         before = self.conn.execute("SELECT COUNT(*) FROM daily").fetchone()[0]
-        with patch("farol.calibration_auto.calibration._indice_do_dia", return_value=(6.5, "", {})), \
-             patch("farol.calibration_auto.daily_metric", return_value=SimpleNamespace(status="ok")):
+        with patch("farol.insights.calibration_auto.calibration._indice_do_dia", return_value=(6.5, "", {})), \
+             patch("farol.insights.calibration_auto.daily_metric", return_value=SimpleNamespace(status="ok")):
             report = calibration_auto.build_report(self.conn, {}, "2026-09-02")
         after = self.conn.execute("SELECT COUNT(*) FROM daily").fetchone()[0]
         self.assertEqual(before, after)

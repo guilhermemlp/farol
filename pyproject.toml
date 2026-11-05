@@ -16,26 +16,27 @@ dev = [
 ]
 
 [project.scripts]
-farol-ingest = "farol.ingest:main"
-farol-today = "farol.today:main"
-farol-splits = "farol.splits:main"
-farol-state = "farol.state:main"
-farol-daily-analysis = "farol.daily_analysis:main"
-farol-calibration = "farol.calibration:main"
-farol-calibration-auto = "farol.calibration_auto:main"
-farol-correlations = "farol.correlations:main"
-farol-calibration-review = "farol.calibration_review:main"
-farol-changepoint = "farol.changepoint:main"
-farol-decoupling = "farol.decoupling:main"
-farol-course = "farol.course:main"
-farol-race-conditions = "farol.race_conditions:main"
-farol-race-prediction = "farol.race_prediction:main"
-farol-dashboard = "farol.dashboard:main"
-farol-injuries = "farol.injuries:main"
-farol-race-log = "farol.race_log:main"
-farol-reconcile = "farol.reconcile:main"
-farol-strava-backfill = "farol.strava_backfill:main"
-farol-running-history = "farol.running_history:main"
+farol-ingest = "farol.pipeline.ingest:main"
+farol-today = "farol.reports.today:main"
+farol-daily = "farol.reports.daily:main"
+farol-splits = "farol.pipeline.splits:main"
+farol-state = "farol.domain.state:main"
+farol-daily-analysis = "farol.reports.daily_analysis:main"
+farol-calibration = "farol.insights.calibration:main"
+farol-calibration-auto = "farol.insights.calibration_auto:main"
+farol-correlations = "farol.insights.correlations:main"
+farol-calibration-review = "farol.insights.calibration_review:main"
+farol-changepoint = "farol.insights.changepoint:main"
+farol-decoupling = "farol.insights.decoupling:main"
+farol-course = "farol.insights.course:main"
+farol-race-conditions = "farol.insights.race_conditions:main"
+farol-race-prediction = "farol.insights.race_prediction:main"
+farol-dashboard = "farol.reports.dashboard:main"
+farol-injuries = "farol.records.injuries:main"
+farol-race-log = "farol.records.race_log:main"
+farol-reconcile = "farol.pipeline.reconcile:main"
+farol-strava-backfill = "farol.pipeline.strava_backfill:main"
+farol-running-history = "farol.insights.running_history:main"
 
 [tool.ruff]
 target-version = "py311"
@@ -53,3 +54,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["farol*"]
+
+[tool.setuptools.package-data]
+# CSS embutido no HTML do dashboard em tempo de renderizacao.
+"farol.reports" = ["assets/css/*.css"]

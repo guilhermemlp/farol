@@ -1,4 +1,4 @@
-"""Testes de farol.interpretation: a camada que transforma a classificacao ja
+"""Testes de farol.domain.interpretation: a camada que transforma a classificacao ja
 calculada (state.gather) em uma leitura coerente do estado.
 
 A camada e' pura: entra um dict no formato de state.gather(), saem textos e
@@ -9,8 +9,8 @@ atencao isolada, padrao noturno e alerta.
 """
 import unittest
 
-from farol import interpretation as interp
-from farol.metrics import Metric
+from farol.domain import interpretation as interp
+from farol.core.metrics import Metric
 
 
 def _m(status="ok", confidence="alta", has_data=True, z=None) -> Metric:

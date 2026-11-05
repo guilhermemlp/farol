@@ -1,12 +1,13 @@
-"""Testes de farol.state: classificacao de dominio, convergencia, e geracao
+"""Testes de farol.domain.state: classificacao de dominio, convergencia, e geracao
 do relatorio a partir de farol_daily_state."""
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db, state
-from farol.daily_state_builder import build_daily_state
-from farol.metrics import Metric
+from farol.core import db
+from farol.domain import state
+from farol.domain.daily_state_builder import build_daily_state
+from farol.core.metrics import Metric
 
 
 def _memory_db() -> sqlite3.Connection:

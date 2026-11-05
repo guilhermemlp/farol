@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from farol.garmin_client import fetch_activities
+from farol.pipeline.garmin_client import fetch_activities
 
 
 class _GarminActivitiesFake:

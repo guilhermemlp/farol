@@ -14,15 +14,16 @@ uma vez:
         OFICIAL de D em state (a mesma fonte, nao um calculo paralelo) tem
         que ser atencao/alerta.
 
-Chama farol.daily_analysis._conclusao/_leitura_interpretacao diretamente
+Chama farol.reports.daily_analysis._conclusao/_leitura_interpretacao diretamente
 com dicts sinteticos -- essas funcoes nao tocam banco, so' recebem
 `dominios`/`performance` ja prontos (mesmo padrao usado para testa-las em
 test_daily_analysis.py, sem a fixture de banco quando nao e' preciso).
 """
 import unittest
 
-from farol import daily_analysis, interpretation as interp
-from farol.metrics import Metric
+from farol.domain import interpretation as interp
+from farol.reports import daily_analysis
+from farol.core.metrics import Metric
 
 
 def _m(status: str, has_data: bool = True) -> Metric:
@@ -239,7 +240,7 @@ class TestNucleoAutonomico(unittest.TestCase):
 
 
 class TestCoerenciaDailyAnalysis(unittest.TestCase):
-    """Mesma propriedade sobre as funcoes de farol.daily_analysis que
+    """Mesma propriedade sobre as funcoes de farol.reports.daily_analysis que
     produzem texto de conclusao -- chamadas direto com dicts sinteticos,
     sem banco (_conclusao/_leitura_interpretacao so' recebem dominios/
     performance/row prontos, nunca tocam farol_daily_state)."""

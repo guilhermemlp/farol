@@ -1,12 +1,12 @@
-"""Testes de farol.correlations: correlacao defasada entre deltas contra a
+"""Testes de farol.insights.correlations: correlacao defasada entre deltas contra a
 propria baseline de 90 dias."""
 import math
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db
-from farol.correlations import Correlacao, lagged_correlation, render_report
+from farol.core import db
+from farol.insights.correlations import Correlacao, lagged_correlation, render_report
 
 
 def _memory_db() -> sqlite3.Connection:

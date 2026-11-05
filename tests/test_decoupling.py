@@ -1,4 +1,4 @@
-"""Testes de farol.decoupling: decoupling aerobico classico (Pa:Hr) dentro
+"""Testes de farol.insights.decoupling: decoupling aerobico classico (Pa:Hr) dentro
 de uma unica corrida continua.
 
 Recomendacao 6 do parecer tecnico de 2026-09-04, destravada apos confirmar
@@ -7,11 +7,11 @@ que get_activity_splits devolve laps reais por km para corridas continuas
 cobre). O teste mais importante aqui e' o golden sample: os 16 laps reais
 da corrida "Longo 15 Km" de 2026-08-22 (activity_id 24070320249), buscados
 ao vivo do Garmin uma unica vez para validar a implementacao contra dado
-real -- ver farol/decoupling.py e tests/test_decoupling.py::_LAPS_REAIS.
+real -- ver farol/insights/decoupling.py e tests/test_decoupling.py::_LAPS_REAIS.
 """
 import unittest
 
-from farol.decoupling import Decoupling, compute_decoupling
+from farol.insights.decoupling import Decoupling, compute_decoupling
 
 # lapDTOs reais de get_activity_splits (activity_id 24070320249,
 # "Serra Talhada - 22/08 Sab - Corrida Longo 15 Km"), simplificados aos
@@ -60,7 +60,7 @@ class TestComputeDecouplingGoldenSample(unittest.TestCase):
         self.assertEqual(self.resultado.dist_total_km, 15.0)
 
     def test_efficiency_factor_e_decoupling_batem_com_o_calculo_real(self):
-        # Valores impressos por 'python -m farol.decoupling --activity-id
+        # Valores impressos por 'python -m farol.insights.decoupling --activity-id
         # 24070320249' em 2026-09-04, contra o Garmin ao vivo.
         self.assertAlmostEqual(self.resultado.ef_primeira_metade, 0.01534, places=5)
         self.assertAlmostEqual(self.resultado.ef_segunda_metade, 0.01528, places=5)

@@ -2,7 +2,7 @@
 
 Este documento registra o contrato mínimo de proveniência. A reconciliação
 histórica posterior usa um export local do Strava somente quando o usuário
-executa explicitamente `farol.strava_backfill --apply`.
+executa explicitamente `farol.pipeline.strava_backfill --apply`.
 
 ## Contrato mínimo
 
@@ -69,7 +69,7 @@ teste passam a proteger.
 
 ## Reconciliação read-only
 
-`python -m farol.reconcile` abre o SQLite com `mode=ro`; não chama
+`python -m farol.pipeline.reconcile` abre o SQLite com `mode=ro`; não chama
 `ensure_schema`, não faz migration e não altera PRAGMAs. Ela lê a planilha em
 modo somente leitura e produz JSON estruturado. Para verificar derivados:
 

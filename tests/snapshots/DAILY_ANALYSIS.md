@@ -3,12 +3,12 @@
 - Data analisada: 2026-11-02
 - Gerado em: 2026-11-02T00:00:00
 - Periodo de referencia: janela movel de 90 dias por metrica (dia-alvo excluido da propria baseline), 7d/30d para tendencia
-- Fonte: `farol_daily_state` (RHR obtido de `daily`, respeitando a quebra de fonte de 2026-06-11 -- ver farol.metrics.from_daily)
-- Atualizacao: esta analise le o SQLite local e nao consulta o Garmin. A ingestao Garmin e feita separadamente por `python -m farol.ingest`; clima de percurso tambem e uma consulta externa separada.
+- Fonte: `farol_daily_state` (RHR obtido de `daily`, respeitando a quebra de fonte de 2026-06-11 -- ver farol.core.metrics.from_daily)
+- Atualizacao: esta analise le o SQLite local e nao consulta o Garmin. A ingestao Garmin e feita separadamente por `python -m farol.pipeline.ingest`; clima de percurso tambem e uma consulta externa separada.
 
 > **Leitura descritiva:** convergencia e alertas estatisticos indicam evidencias para revisar, nao diagnostico nem decisao automatica de treino.
 
-Diagnostico detalhado. Para o resumo executivo de 1 pagina, ver `DAILY_STATE.md` (`python -m farol.state`). Gerado deterministicamente a partir dos mesmos dados e das mesmas regras de classificacao.
+Diagnostico detalhado. Para o resumo executivo de 1 pagina, ver `DAILY_STATE.md` (`python -m farol.domain.state`). Gerado deterministicamente a partir dos mesmos dados e das mesmas regras de classificacao.
 
 ## 2. RESUMO EXECUTIVO
 
@@ -131,7 +131,7 @@ Este documento e diagnostico: descreve o que os dados mostram e o que sugerem em
 
 ## 11. LEITURA (INTERPRETACAO EM LINGUAGEM)
 
-Leitura retrospectiva derivada da classificacao acima (farol.interpretation) -- descreve, nao prescreve.
+Leitura retrospectiva derivada da classificacao acima (farol.domain.interpretation) -- descreve, nao prescreve.
 
 - **Estado fisiologico**: alerta -- dominio em ALERTA (CARGA, RECUPERACAO, SONO): resposta fora do padrao pessoal
 - **Carga**: fora do padrao pessoal (alerta)
@@ -145,7 +145,7 @@ Leitura retrospectiva derivada da classificacao acima (farol.interpretation) -- 
 
 ---
 
-Sinais fora do padrao por dominio (mesma classificacao de farol.state):
+Sinais fora do padrao por dominio (mesma classificacao de farol.domain.state):
 - CARGA: TSB
 - RECUPERACAO: HRV, FC repouso, FC noturna, Stress, Respiracao, SpO2 minima
 - SONO: Duracao do sono, Tempo acordado, Sono profundo, Sono REM, Sleep score

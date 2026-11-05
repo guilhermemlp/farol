@@ -1,12 +1,13 @@
-"""Testes de farol.longitudinal: persistencia de sinal (streak) por dominio
+"""Testes de farol.domain.longitudinal: persistencia de sinal (streak) por dominio
 e por convergencia, ao longo de multiplos dias de farol_daily_state."""
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
 from golden_support import skip_unless_real_db
-from farol import db, longitudinal
-from farol.daily_state_builder import build_daily_state
+from farol.core import db
+from farol.domain import longitudinal
+from farol.domain.daily_state_builder import build_daily_state
 
 
 def _memory_db() -> sqlite3.Connection:
@@ -38,7 +39,7 @@ class TestStreak(unittest.TestCase):
             )
         self.conn.commit()
         # farol_daily_state precisa existir tambem para os dias de baseline --
-        # senao a janela de 90 dias usada por farol.metrics fica sem pontos
+        # senao a janela de 90 dias usada por farol.core.metrics fica sem pontos
         # suficientes (n < 8) e toda metrica sai como "sem_dado".
         for i in range(120, 10, -1):
             build_daily_state(self.conn, (self.base_date - timedelta(days=i)).isoformat())
@@ -677,7 +678,7 @@ class TestEpisodesDadosReais(unittest.TestCase):
             # entre 16-29%, sd_90d=15.1 sobre media 20.4, CV ~74%) -- um
             # campo genuinamente mais volatil, nao um achado fisiologico
             # novo. Removido de volta de _RECUPERACAO (mesmo tratamento de
-            # vo2max/sleep_regularity_min: guardado, exibido em farol.today,
+            # vo2max/sleep_regularity_min: guardado, exibido em farol.reports.today,
             # fora de domain_status/streak/convergencia), o que devolve este
             # episodio aos 7 dias originais.
             self.assertEqual(len(todos["CONVERGENCIA"]), 2)
@@ -703,7 +704,7 @@ class TestEpisodesDadosReais(unittest.TestCase):
 
 @skip_unless_real_db()
 class TestGoldenSampleNaoAlterado(unittest.TestCase):
-    """farol.longitudinal so le farol_daily_state -- confirma que consultar
+    """farol.domain.longitudinal so le farol_daily_state -- confirma que consultar
     o streak do golden sample nao muda CTL/ATL/TSB nem precisa dele mudar."""
 
     def test_golden_sample_2026_09_02_preservado(self):

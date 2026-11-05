@@ -1,11 +1,12 @@
-"""Testes de farol.race_prediction: as tres formulas contra valores
+"""Testes de farol.insights.race_prediction: as tres formulas contra valores
 publicados, a leitura de provas observadas do banco, o relatorio com as
-secoes OBSERVADO/ESTIMATIVA/A VALIDAR, e o caso real com farol.db."""
+secoes OBSERVADO/ESTIMATIVA/A VALIDAR, e o caso real com farol.core.db."""
 import sqlite3
 import unittest
 
 from golden_support import skip_unless_real_db
-from farol import db, race_prediction
+from farol.core import db
+from farol.insights import race_prediction
 
 
 def _memory_db() -> sqlite3.Connection:

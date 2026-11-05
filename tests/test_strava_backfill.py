@@ -9,9 +9,9 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from farol.fit_dynamics import summarize_dynamics
-from farol.sheets import SHEET_ACTIVITIES, _header_index, open_or_create, write_activity
-from farol.strava_backfill import reconcile
+from farol.pipeline.fit_dynamics import summarize_dynamics
+from farol.pipeline.sheets import SHEET_ACTIVITIES, _header_index, open_or_create, write_activity
+from farol.pipeline.strava_backfill import reconcile
 
 
 def _fit_record():

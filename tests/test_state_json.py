@@ -1,10 +1,10 @@
-"""Testes da F10 (auditoria): saida estruturada JSON (`farol.state --json`) e
+"""Testes da F10 (auditoria): saida estruturada JSON (`farol.domain.state --json`) e
 exit codes 0/1/2.
 
 O que se testa aqui e' comportamento observavel:
 - o JSON em si (valido, contrato minimo, tipos serializaveis, sem markdown);
 - a traducao do status global para exit code (0/1/2) -- que so mapeia a
-  classificacao que farol.state JA produz, nunca reclassifica;
+  classificacao que farol.domain.state JA produz, nunca reclassifica;
 - o CLI com --json (stdout so JSON, exit code real) e sem --json (relatorio
   markdown inalterado, comportamento historico preservado);
 - erros de execucao como processo, nao como estado fisiologico.
@@ -19,9 +19,10 @@ from datetime import date, timedelta
 from unittest import mock
 
 from golden_support import skip_unless_real_db
-from farol import db, state
-from farol.daily_state_builder import build_daily_state
-from farol.metrics import Metric
+from farol.core import db
+from farol.domain import state
+from farol.domain.daily_state_builder import build_daily_state
+from farol.core.metrics import Metric
 
 _MODELO_CONTRATO = ("schema", "data", "status_global", "exit_code", "dominios",
                     "performance", "convergencia", "descontinuidades")
@@ -123,7 +124,7 @@ class TestBuildStateJson(unittest.TestCase):
 
     def setUp(self):
         # Fixture com pequena variacao ciclica (nao valores fixos repetidos):
-        # com sd_90d = 0 farol.metrics nao calcula z e toda metrica sai como
+        # com sd_90d = 0 farol.core.metrics nao calcula z e toda metrica sai como
         # sem_dado, mascarando a classificacao. Mesmo padrao ja validado em
         # tests/test_daily_analysis.py (TestDailyAnalysisBase).
         self.conn = _memory_db()
@@ -211,7 +212,7 @@ class TestBuildStateJson(unittest.TestCase):
 # ------------------------------------------------------------- CLI (main)
 
 class TestCliJson(unittest.TestCase):
-    """Comportamento observavel do `python -m farol.state --json`: stdout so
+    """Comportamento observavel do `python -m farol.domain.state --json`: stdout so
     JSON, exit code real, erros como processo. Usa banco em memoria via patch
     em db.connect_readonly, sem rede."""
 
@@ -224,9 +225,9 @@ class TestCliJson(unittest.TestCase):
 
     def _roda(self, *extra_args, db_conn=None):
         conn = db_conn if db_conn is not None else self.conn
-        argv = ["farol.state", "--date", self.base.isoformat(), *extra_args]
+        argv = ["farol.domain.state", "--date", self.base.isoformat(), *extra_args]
         saida, erros = io.StringIO(), io.StringIO()
-        with mock.patch("farol.state.db.connect_readonly", return_value=conn), \
+        with mock.patch("farol.domain.state.db.connect_readonly", return_value=conn), \
              mock.patch.object(sys, "argv", argv), \
              redirect_stdout(saida), redirect_stderr(erros):
             try:
@@ -322,7 +323,7 @@ class TestCliJson(unittest.TestCase):
 @skip_unless_real_db()
 class TestGoldenSample(unittest.TestCase):
     """Um estado real conhecido do banco produz JSON coerente (mesma base que
-    farol.state/daily_analysis consomem em producao)."""
+    farol.domain.state/daily_analysis consomem em producao)."""
 
     def test_golden_sample_2026_09_02(self):
         conn = db.connect_readonly()

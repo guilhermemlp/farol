@@ -1,5 +1,5 @@
 """Teste de fronteira para as janelas trimp_7d/trimp_28d de
-farol.daily_state_builder.build_daily_state.
+farol.domain.daily_state_builder.build_daily_state.
 
 Cada dia recebe um TRIMP unico e identificavel (date_index + 1) para que a
 soma agregada revele exatamente quais datas entraram na janela -- em vez de
@@ -9,8 +9,8 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db
-from farol.daily_state_builder import build_daily_state
+from farol.core import db
+from farol.domain.daily_state_builder import build_daily_state
 
 
 def _memory_db() -> sqlite3.Connection:

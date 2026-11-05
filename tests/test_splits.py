@@ -1,4 +1,4 @@
-"""Testes de farol.splits.summarize_work_segments: o parsing da resposta
+"""Testes de farol.pipeline.splits.summarize_work_segments: o parsing da resposta
 bruta do Garmin (get_activity_typed_splits) que alimenta o dominio
 PERFORMANCE (assess_output_preserved/assess_deterioration_detected). Nenhum
 teste existia para esta funcao antes desta auditoria -- a cobertura de
@@ -7,7 +7,7 @@ activities.splits, nunca passa por aqui.
 """
 import unittest
 
-from farol.splits import WORK_TYPES, summarize_work_segments
+from farol.pipeline.splits import WORK_TYPES, summarize_work_segments
 
 
 def _segmento(tipo="INTERVAL_ACTIVE", distance=1000, duration=240, **campos):

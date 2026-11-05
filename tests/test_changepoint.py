@@ -1,4 +1,4 @@
-"""Testes de farol.changepoint: estimativa CUSUM de quebra de nivel.
+"""Testes de farol.insights.changepoint: estimativa CUSUM de quebra de nivel.
 
 O teste mais importante nao esta aqui, e sim documentado no docstring do
 modulo e no commit: rodar scan() contra o data/farol.db real acha as duas
@@ -11,8 +11,8 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db
-from farol.changepoint import CampoInvalido, _cusum_peak, render_report, scan
+from farol.core import db
+from farol.insights.changepoint import CampoInvalido, _cusum_peak, render_report, scan
 
 
 def _memory_db() -> sqlite3.Connection:

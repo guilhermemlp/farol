@@ -1,4 +1,4 @@
-"""Snapshots dos Markdown e uso de `farol.report_sections` por `farol.today`.
+"""Snapshots dos Markdown e uso de `farol.reports.report_sections` por `farol.reports.today`.
 
 A fixture e' sintetica e 100% deterministica: banco em memoria, valores
 gerados por aritmetica inteira e nenhum acesso a dado pessoal. Ela existe
@@ -19,7 +19,9 @@ from io import StringIO
 from unittest import mock
 
 from snapshot_support import assert_snapshot
-from farol import daily_analysis, db, report_sections, snapshot, state, today
+from farol.core import db
+from farol.domain import snapshot, state
+from farol.reports import daily_analysis, report_sections, today
 
 FIM = date(2026, 11, 2)
 DIA = FIM.isoformat()
@@ -125,27 +127,27 @@ def _popular(conn: sqlite3.Connection) -> None:
 
 def _formatar_estado(conn) -> str:
     # O registro manual de lesao e' pessoal: o snapshot nunca o le.
-    with mock.patch("farol.state.injuries.latest_observation", return_value=None):
+    with mock.patch("farol.domain.state.injuries.latest_observation", return_value=None):
         return state.build_report(conn, DIA)
 
 
 def _formatar_analise(conn) -> str:
-    with mock.patch("farol.daily_analysis.injuries.latest_observation", return_value=None), \
-            mock.patch("farol.daily_analysis.race_log.entry_for_date", return_value=None):
+    with mock.patch("farol.reports.daily_analysis.injuries.latest_observation", return_value=None), \
+            mock.patch("farol.reports.daily_analysis.race_log.entry_for_date", return_value=None):
         return daily_analysis.build_analysis(conn, DIA, gerado_em=GERADO_EM)
 
 
-def _formatar_today(conn) -> str:
+def _formatar_today(conn, argv: list[str] | None = None) -> str:
     """Saida do relatorio de terminal, sem cor ANSI e sem registro pessoal."""
     with mock.patch.object(today, "date", FakeDate), \
             mock.patch.object(today, "load_profile", return_value=PROFILE), \
-            mock.patch("farol.db.connect_readonly",
+            mock.patch("farol.core.db.connect_readonly",
                        return_value=_ConexaoSemFechar(conn)), \
-            mock.patch("farol.injuries.latest_observation", return_value=None), \
+            mock.patch("farol.records.injuries.latest_observation", return_value=None), \
             mock.patch.object(report_sections, "_USAR_COR", False):
         saida = StringIO()
         with redirect_stdout(saida):
-            today.main()
+            today.main(argv or [])
     return saida.getvalue()
 
 
@@ -166,6 +168,28 @@ class TestMarkdownSnapshots(unittest.TestCase):
     def test_today_relatorio_terminal(self):
         assert_snapshot(self, "TODAY.txt", _formatar_today(self.conn))
 
+    def test_today_compact_so_visao_rapida_e_leitura(self):
+        texto = _formatar_today(self.conn, ["--compact"])
+        self.assertIn("RESUMO RAPIDO", texto)
+        self.assertIn("  LEITURA:", texto)
+        self.assertIn("EVOLUCAO DOS DOMINIOS", texto)
+        # As secoes detalhadas ficam de fora; os rotulos de dominio continuam
+        # aparecendo dentro da leitura/tabela, entao a checagem e' pela linha
+        # de cabecalho (nome isolado entre as bordas).
+        for cabecalho in ("TREINO REALIZADO", "CARGA DE TREINO",
+                          "RECUPERACAO", "SONO", "PADROES DETECTADOS"):
+            self.assertNotIn(f"\n{cabecalho}\n", texto)
+
+    def test_today_alerts_so_lista_o_que_esta_fora_do_padrao(self):
+        texto = _formatar_today(self.conn, ["--alerts"])
+        self.assertIn("ALERTAS", texto)
+        self.assertIn("Convergencia ativa", texto)
+        # Nada das secoes descritivas nem do resumo rapido.
+        self.assertNotIn("RESUMO RAPIDO", texto)
+        for cabecalho in ("TREINO REALIZADO", "CARGA DE TREINO",
+                          "RECUPERACAO", "SONO", "PADROES DETECTADOS"):
+            self.assertNotIn(f"\n{cabecalho}\n", texto)
+
 
 class TestTodayUsaOsModulosCompartilhados(unittest.TestCase):
     """O orquestrador precisa usar a formatacao extraida e o snapshot diario
@@ -181,21 +205,54 @@ class TestTodayUsaOsModulosCompartilhados(unittest.TestCase):
     def test_main_delega_a_formatacao_e_as_metricas_diarias(self):
         with mock.patch.object(today, "date", FakeDate), \
                 mock.patch.object(today, "load_profile", return_value=PROFILE), \
-                mock.patch("farol.db.connect_readonly", return_value=self.conn), \
-                mock.patch("farol.injuries.latest_observation", return_value=None), \
+                mock.patch("farol.core.db.connect_readonly", return_value=self.conn), \
+                mock.patch("farol.records.injuries.latest_observation", return_value=None), \
                 mock.patch.object(report_sections, "render_report",
                                   return_value="RELATORIO") as render, \
                 mock.patch.object(snapshot, "daily_metrics",
                                   wraps=snapshot.daily_metrics) as metricas:
             saida = StringIO()
             with redirect_stdout(saida):
-                today.main()
+                today.main([])
 
         self.assertEqual(saida.getvalue(), "RELATORIO")
         render.assert_called_once()
         metricas.assert_called_once_with(self.conn, DIA)
+        # A formatacao vive em report_sections; today so' orquestra.
         self.assertIs(today.report_sections, report_sections)
-        self.assertIs(today.sparkline, report_sections.sparkline)
+
+
+class TestContextoDeProvaNoResumo(unittest.TestCase):
+    """Prova ja realizada nao pode reaparecer como "em -46 dias".
+
+    O bloco de prova carrega previsao, TSB-alvo e nutricao -- todos apontando
+    para a proxima prova. Depois da data, o relatorio espera que a proxima
+    prova seja declarada em profile.yaml em vez de reciclar a anterior.
+    """
+
+    def _ctx(self, **kwargs) -> report_sections.ReportContext:
+        base = dict(
+            conn=None, hoje=FIM, hoje_str=DIA, profile={}, metricas={},
+            vo2max_metric=None, indice=None, notas={}, pesos={}, padroes=[],
+            doenca=None, prova=None, tl=None, daily={}, atividades=[],
+            dados_estado=None, leitura=None, injury=None, injury_alert=None,
+        )
+        base.update(kwargs)
+        return report_sections.ReportContext(**base)
+
+    def test_prova_realizada_nao_aparece_no_resumo(self):
+        ctx = self._ctx(prova={"nome": "Meia-maratona", "dias": -46,
+                               "fase": "pos-prova", "distancia_km": 21.1})
+        texto = "\n".join(report_sections._secao_resumo(ctx))
+        self.assertNotIn("Prova:", texto)
+        self.assertNotIn("Previsao da meia", texto)
+        self.assertNotIn("Nutricao configurada", texto)
+
+    def test_prova_futura_continua_no_resumo(self):
+        ctx = self._ctx(prova={"nome": "Meia-maratona", "dias": 10,
+                               "fase": "polimento", "distancia_km": 21.1})
+        texto = "\n".join(report_sections._secao_resumo(ctx))
+        self.assertIn("Prova: Meia-maratona em 10 dias", texto)
 
 
 if __name__ == "__main__":

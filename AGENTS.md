@@ -41,31 +41,43 @@ Garmin -> data/garmin_health.xlsx -> data/farol.db -> reports/
   bancos em memória, arquivos temporários ou conexões somente-leitura.
 - O histórico tem duas procedências que não podem ser misturadas em uma
   baseline: legado até 2026-06-10 e sincronização atual desde 2026-06-11.
-  `farol.metrics.DATE_SPLITS` também protege quebras conhecidas de medição.
+  `farol.core.metrics.DATE_SPLITS` também protege quebras conhecidas de medição.
 
 ## Arquitetura
 
-- `farol/config.py`: caminhos, variáveis de ambiente e perfil.
-- `farol/db.py` e `farol/schema.sql`: conexão, schema e migrações. Use
-  `connect_readonly()` para o banco pessoal quando só for ler; apenas fluxos
-  explícitos de escrita devem usar `connect_write()`.
-- `farol/sheets.py`, `farol/load.py`, `farol/ingest.py`: entrada, planilha e
-  reconstrução do banco.
-- `farol/metrics.py`: primitiva `Metric`, baseline móvel e z-score. É o local
-  apropriado para semântica estatística compartilhada.
-- `farol/training_load.py`, `farol/analysis.py`, `farol/recovery.py` e
-  `farol/zones.py`: regras de domínio. `recovery.py` é a única fonte dos pesos
-  padrão do índice.
-- `farol/daily_state_builder.py`: constrói a tabela derivada
-  `farol_daily_state`; mantenha-o fora de `db.py`.
-- `farol/state.py::gather()`: fonte única da classificação por domínio usada
-  por `state`, `daily_analysis` e a interpretação.
-- `farol/interpretation.py`: apenas traduz classificação existente em texto;
-  não deve recalcular métricas nem criar limiares.
-- `farol/today.py`: relatório diário; `farol/dashboard.py`: visualização que
-  deve chamar funções públicas existentes, sem duplicar regras de domínio.
-- `farol/longitudinal.py`, `correlations.py`, `changepoint.py`,
-  `race_prediction.py` e `decoupling.py`: análises descritivas sob demanda.
+O pacote é organizado em camadas: `core` e `domain` são a base e não importam
+`pipeline` nem `reports`; `pipeline` (entrada), `insights` (análises) e
+`reports` (saída) compõem a aplicação e podem depender da base.
+
+- `farol/core/`: infraestrutura compartilhada.
+  - `config.py`: caminhos, variáveis de ambiente e perfil.
+  - `db.py` e `schema.sql`: conexão, schema e migrações. Use
+    `connect_readonly()` para o banco pessoal quando só for ler; apenas fluxos
+    explícitos de escrita devem usar `connect_write()`.
+  - `metrics.py`: primitiva `Metric`, baseline móvel e z-score. É o local
+    apropriado para semântica estatística compartilhada.
+  - `labels.py`: rótulos de exibição compartilhados.
+- `farol/domain/`: regras do modelo.
+  - `training_load.py`, `analysis.py`, `recovery.py` e `zones.py`: carga,
+    performance, índice e zonas de FC. `recovery.py` é a única fonte dos pesos
+    padrão do índice.
+  - `daily_state_builder.py`: constrói a tabela derivada `farol_daily_state`;
+    mantenha-o fora de `db.py`.
+  - `state.py::gather()`: fonte única da classificação por domínio usada por
+    `state`, `daily_analysis` e a interpretação.
+  - `interpretation.py`: apenas traduz classificação existente em texto; não
+    deve recalcular métricas nem criar limiares.
+  - `longitudinal.py`, `snapshot.py`, `sleep_regularity.py` e
+    `hrv_variability.py`: persistência, retrato diário e sinais complementares.
+- `farol/records/`: registros manuais (`injuries`, `race_log`, `nutrition`).
+- `farol/insights/`: análises descritivas sob demanda (`correlations`,
+  `changepoint`, `race_prediction`, `decoupling`, `calibration*`,
+  `running_history`, `course`, `race_conditions`).
+- `farol/pipeline/`: entrada de dados (`garmin_client`, `sheets`, `load`,
+  `ingest`, `splits`, `fit_dynamics`, `strava_backfill`, `reconcile`).
+- `farol/reports/`: saída (`today`, `daily`, `report_sections`, `dashboard`,
+  `daily_analysis`). `dashboard.py` deve chamar funções públicas existentes,
+  sem duplicar regras de domínio; `report_sections.py` só formata texto.
 
 Ao adicionar uma métrica, deixe explícitos: procedência, direção fisiológica,
 baseline aplicável, cobertura/`NULL`, se participa de domínio, convergência e
@@ -111,11 +123,11 @@ limpo; isso é esperado. Nunca contorne essa proteção para modificar
 Para operações manuais autorizadas, os comandos principais são:
 
 ```powershell
-python -m farol.ingest --days 7  # chama Garmin; somente com autorização
-python -m farol.load             # reconstroi SQLite a partir da planilha
-python -m farol.today
-python -m farol.state
-python -m farol.dashboard
+python -m farol.pipeline.ingest --days 7  # chama Garmin; somente com autorização
+python -m farol.pipeline.load             # reconstroi SQLite a partir da planilha
+python -m farol.reports.today
+python -m farol.domain.state
+python -m farol.reports.dashboard
 ```
 
 Consulte `README.md` para a lista completa de comandos e `docs/HANDOFF_2026-09-04.md`

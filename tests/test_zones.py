@@ -1,8 +1,8 @@
-"""Testes de farol.zones: zonas de FC por LTHR (preferido) ou Karvonen
+"""Testes de farol.domain.zones: zonas de FC por LTHR (preferido) ou Karvonen
 (fallback). Sem teste antes desta auditoria (2026-09-04)."""
 import unittest
 
-from farol.zones import ZONE_NAMES, heart_rate_zones
+from farol.domain.zones import ZONE_NAMES, heart_rate_zones
 
 
 class TestHeartRateZones(unittest.TestCase):

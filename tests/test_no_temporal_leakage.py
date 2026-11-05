@@ -24,9 +24,10 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import dashboard, db
-from farol.changepoint import scan as changepoint_scan
-from farol.correlations import lagged_correlation
+from farol.core import db
+from farol.reports import dashboard
+from farol.insights.changepoint import scan as changepoint_scan
+from farol.insights.correlations import lagged_correlation
 
 
 def _memory_db() -> sqlite3.Connection:

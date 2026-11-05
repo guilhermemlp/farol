@@ -1,6 +1,6 @@
 import unittest
 
-from farol import nutrition
+from farol.records import nutrition
 
 
 class TestNutrition(unittest.TestCase):

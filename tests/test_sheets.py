@@ -1,13 +1,16 @@
-"""Testes de farol.sheets.load_into_db: o ETL central do projeto (planilha ->
+"""Testes de farol.pipeline.sheets.load_into_db: o ETL central do projeto (planilha ->
 banco). Nenhum teste existia para esta funcao antes desta auditoria -- toda
 a cobertura de `_drop_superseded_activities`/`_tag_daily_source` em
 test_core.py testa auxiliares dela, nunca o caminho principal.
 """
 import sqlite3
+import tempfile
 import unittest
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
-from farol import db, sheets
+from farol.core import db
+from farol.pipeline import sheets
 
 _HR_MAX = 192.0
 
@@ -246,6 +249,33 @@ class TestLoadIntoDbActivities(unittest.TestCase):
         sheets.write_activity(wb, {"date": "2026-06-15", "type": "running"})
         n_daily, n_act = sheets.load_into_db(self.conn, wb, _HR_MAX)
         self.assertEqual(n_act, 0)
+
+
+class TestBackupDaPlanilha(unittest.TestCase):
+    """A planilha e' a fonte de verdade: o ingest precisa guardar o estado
+    anterior a gravacao, sem sobrescrever a primeira copia do dia."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.sheet = Path(self._tmp.name) / "garmin_health.xlsx"
+
+    def test_copia_antes_da_gravacao(self):
+        self.sheet.write_bytes(b"conteudo original")
+        destino = sheets.backup_sheet(self.sheet, date(2026, 11, 5))
+        self.assertEqual(destino.name, "garmin_health.xlsx.bak-20261105")
+        self.assertEqual(destino.read_bytes(), b"conteudo original")
+
+    def test_nao_sobrescreve_a_primeira_copia_do_dia(self):
+        self.sheet.write_bytes(b"estado da manha")
+        sheets.backup_sheet(self.sheet, date(2026, 11, 5))
+        self.sheet.write_bytes(b"estado da tarde")
+        destino = sheets.backup_sheet(self.sheet, date(2026, 11, 5))
+        self.assertEqual(destino.read_bytes(), b"estado da manha")
+
+    def test_sem_planilha_nao_cria_nada(self):
+        self.assertIsNone(sheets.backup_sheet(self.sheet, date(2026, 11, 5)))
+        self.assertEqual(list(Path(self._tmp.name).iterdir()), [])
 
 
 if __name__ == "__main__":

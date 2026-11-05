@@ -1,4 +1,4 @@
-"""Testes de farol.sleep_regularity: SD circular do horario de dormir.
+"""Testes de farol.domain.sleep_regularity: SD circular do horario de dormir.
 
 Funcoes puras -- sem banco, exceto bedtime_regularity() que so le `daily`.
 """
@@ -6,8 +6,8 @@ import sqlite3
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from farol import db
-from farol.sleep_regularity import _circular_sd_minutos, _minutos_do_dia_local, bedtime_regularity
+from farol.core import db
+from farol.domain.sleep_regularity import _circular_sd_minutos, _minutos_do_dia_local, bedtime_regularity
 
 
 def _epoch_ms_local(ano, mes, dia, hora, minuto, offset_horas=-3):

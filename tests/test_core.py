@@ -15,12 +15,15 @@ import unittest
 from datetime import date, timedelta
 
 from golden_support import skip_unless_real_db
-from farol import analysis, db, sheets, today
-from farol.config import DB_PATH
-from farol.daily_state_builder import build_daily_state
-from farol.metrics import Metric, build_metric, from_daily
-from farol.recovery import recovery_status
-from farol.training_load import recompute_training_load, trimp
+from farol.core import db
+from farol.domain import analysis
+from farol.pipeline import sheets
+from farol.reports import report_sections, today
+from farol.core.config import DB_PATH
+from farol.domain.daily_state_builder import build_daily_state
+from farol.core.metrics import Metric, build_metric, from_daily
+from farol.domain.recovery import recovery_status
+from farol.domain.training_load import recompute_training_load, trimp
 
 
 def _memory_db() -> sqlite3.Connection:
@@ -706,73 +709,73 @@ class TestTiposDeAtividade(unittest.TestCase):
                    "avg_hr": 118, "trimp": 35.0}
         respiracao = {"type": "breathwork", "duration_min": 12.0, "distance_km": None,
                       "avg_hr": 70, "trimp": 2.0}
-        self.assertEqual(today.classify_workout_demand(pilates), "BAIXA")
-        self.assertEqual(today.classify_workout_demand(respiracao), "BAIXA")
-        self.assertIn("pilates", today.resumo_atividades([pilates]))
-        self.assertIn("breathwork", today.resumo_atividades([respiracao]))
+        self.assertEqual(report_sections.classify_workout_demand(pilates), "BAIXA")
+        self.assertEqual(report_sections.classify_workout_demand(respiracao), "BAIXA")
+        self.assertIn("pilates", report_sections.resumo_atividades([pilates]))
+        self.assertIn("breathwork", report_sections.resumo_atividades([respiracao]))
 
     def test_tipo_desconhecido_nao_quebra(self):
         # Se amanha aparecer um tipo novo no Garmin, o relatorio segue.
         novo = {"type": "meditation", "duration_min": 20.0, "trimp": 1.0}
         sem_tipo = {"type": None, "duration_min": 30.0, "trimp": 10.0}
-        self.assertIn("meditation", today.resumo_atividades([novo]))
-        self.assertIn("atividade", today.resumo_atividades([sem_tipo]))
+        self.assertIn("meditation", report_sections.resumo_atividades([novo]))
+        self.assertIn("atividade", report_sections.resumo_atividades([sem_tipo]))
 
     def test_dia_com_mais_de_um_treino_mostra_todos(self):
         corrida = {"type": "running", "trimp": 117.0}
         pilates = {"type": "pilates", "trimp": 35.0}
-        linha = today.resumo_atividades([corrida, pilates])
+        linha = report_sections.resumo_atividades([corrida, pilates])
         self.assertIn("running", linha)
         self.assertIn("pilates", linha)
 
     def test_underscore_do_garmin_vira_espaco(self):
         forca = {"type": "strength_training", "trimp": 72.0}
-        self.assertIn("strength training", today.resumo_atividades([forca]))
+        self.assertIn("strength training", report_sections.resumo_atividades([forca]))
 
     def test_dia_sem_treino(self):
-        self.assertEqual(today.resumo_atividades([]), "")
+        self.assertEqual(report_sections.resumo_atividades([]), "")
 
     def test_exigencia_sem_trimp_nao_quebra(self):
-        self.assertEqual(today.classify_workout_demand({"type": "walking"}), "BAIXA")
+        self.assertEqual(report_sections.classify_workout_demand({"type": "walking"}), "BAIXA")
 
     def test_zona_de_fc_fora_das_faixas(self):
         faixas = [{"zone": "Z1", "name": "Recuperacao", "hr_min": 118, "hr_max": 155},
                   {"zone": "Z5", "name": "VO2max", "hr_min": 182, "hr_max": 192}]
-        self.assertIn("Z1", today.zone_of(130, faixas))
-        self.assertIn("abaixo de Z1", today.zone_of(70, faixas))   # FC de repouso
-        self.assertEqual(today.zone_of(None, faixas), "")
-        self.assertEqual(today.zone_of(150, []), "")
+        self.assertIn("Z1", report_sections.zone_of(130, faixas))
+        self.assertIn("abaixo de Z1", report_sections.zone_of(70, faixas))   # FC de repouso
+        self.assertEqual(report_sections.zone_of(None, faixas), "")
+        self.assertEqual(report_sections.zone_of(150, []), "")
 
 
 class TestSparkline(unittest.TestCase):
-    """today.sparkline: escala min-max linear em blocos Unicode. Pista
+    """report_sections.sparkline: escala min-max linear em blocos Unicode. Pista
     visual, entao os testes checam forma/monotonicidade, nao blocos exatos."""
 
     def test_lista_vazia_devolve_string_vazia(self):
-        self.assertEqual(today.sparkline([]), "")
+        self.assertEqual(report_sections.sparkline([]), "")
 
     def test_um_ponto_devolve_um_bloco(self):
-        self.assertEqual(len(today.sparkline([42.0])), 1)
+        self.assertEqual(len(report_sections.sparkline([42.0])), 1)
 
     def test_valores_iguais_devolve_bloco_do_meio_sem_erro(self):
-        resultado = today.sparkline([5.0, 5.0, 5.0])
+        resultado = report_sections.sparkline([5.0, 5.0, 5.0])
         self.assertEqual(len(resultado), 3)
         self.assertEqual(len(set(resultado)), 1)  # os 3 blocos sao o mesmo caractere
 
     def test_minimo_e_maximo_usam_os_blocos_extremos(self):
-        resultado = today.sparkline([1.0, 5.0, 10.0])
+        resultado = report_sections.sparkline([1.0, 5.0, 10.0])
         self.assertEqual(resultado[0], "▁")   # valor minimo -> bloco mais baixo
         self.assertEqual(resultado[-1], "█")  # valor maximo -> bloco mais alto
 
     def test_serie_crescente_da_blocos_nao_decrescentes(self):
         blocos = "▁▂▃▄▅▆▇█"
-        resultado = today.sparkline([1.0, 2.0, 3.0, 4.0, 5.0])
+        resultado = report_sections.sparkline([1.0, 2.0, 3.0, 4.0, 5.0])
         indices = [blocos.index(c) for c in resultado]
         self.assertEqual(indices, sorted(indices))
 
     def test_preserva_o_numero_de_pontos(self):
         valores = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0]
-        self.assertEqual(len(today.sparkline(valores)), len(valores))
+        self.assertEqual(len(report_sections.sparkline(valores)), len(valores))
 
 
 class TestRecoveryStatus(unittest.TestCase):
@@ -800,7 +803,7 @@ class TestDetectPatterns(unittest.TestCase):
     """today.detect_patterns: quantos sinais individuais estao fora do padrao
     no mesmo dia. C3 (VISTORIA_2026-09-04 V2): o texto fala em SINAIS, nunca
     em dominios -- dominio e' a agregacao larga de CARGA/RECUPERACAO/SONO que
-    so farol.state classifica (regra 8 = state.convergence). Dois campos do
+    so farol.domain.state classifica (regra 8 = state.convergence). Dois campos do
     mesmo dominio (HRV e RHR, RECUPERACAO) contam como 2 sinais, nao como 2
     dominios."""
 
@@ -988,8 +991,8 @@ class TestBuildDailyState(unittest.TestCase):
             self.assertEqual(row['sleep_score'], 52)
             self.assertAlmostEqual(row['sleep_regularity_min'], 85.2, places=1)
 
-            # PERFORMANCE: preenchido desde o sync real de 2026-09-03 (farol.ingest
-            # busca os splits; farol.load sozinho nao busca -- ver README).
+            # PERFORMANCE: preenchido desde o sync real de 2026-09-03 (farol.pipeline.ingest
+            # busca os splits; farol.pipeline.load sozinho nao busca -- ver README).
             self.assertEqual(row['output_preserved'], 'yes')
             self.assertEqual(row['deterioration_detected'], 'yes')
 
@@ -1120,7 +1123,7 @@ class TestPerformanceDomain(unittest.TestCase):
 
     def test_corrida_continua_de_1_rep_nao_e_sessao_intervalada(self):
         # C1: sessao de 1 rep e' corrida continua tipada como tiro unico por
-        # farol.splits -- nao e' intervalo real. Nem output_preserved nem
+        # farol.pipeline.splits -- nao e' intervalo real. Nem output_preserved nem
         # deterioration_detected devem opinar (None), em vez de comparar o
         # pace de uma corrida continua contra o padrao de tiros (falso
         # positivo de VISTORIA_2026-09-04 V4). Mesma regra de `_interval_reps`.

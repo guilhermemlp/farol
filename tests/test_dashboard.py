@@ -1,4 +1,4 @@
-"""Testes de farol.dashboard: helpers puros (series/tabela markdown->HTML) e
+"""Testes de farol.reports.dashboard: helpers puros (series/tabela markdown->HTML) e
 a montagem do contexto/HTML contra um banco minimo em memoria. Nao retesta
 logica de dominio ja coberta em outros modulos (recovery_index, weekly_load,
 race_prediction, state.gather) -- dashboard.py so orquestra e renderiza."""
@@ -8,8 +8,9 @@ import unittest
 from datetime import date, timedelta
 
 from golden_support import skip_unless_real_db
-from farol import dashboard, db
-from farol.config import load_profile
+from farol.core import db
+from farol.reports import dashboard
+from farol.core.config import load_profile
 
 
 def _memory_db() -> sqlite3.Connection:
@@ -280,7 +281,7 @@ class TestRenderHtml(unittest.TestCase):
             conn.close()
         self.assertIn("<title>Farol</title>", out)
         self.assertIn("Teste da Silva", out)
-        self.assertIn("Voce, agora", out)
+        self.assertIn("Resumo rapido", out)
         self.assertIn("Carga de treino", out)
         self.assertIn("Recuperacao", out)
         self.assertIn("Previsao de prova", out)
@@ -294,6 +295,85 @@ class TestRenderHtml(unittest.TestCase):
         self.assertIn("Perfil", out)
         self.assertIn("nao prescreve treino", out)
 
+    def test_resumo_rapido_destaca_o_alerta_principal(self):
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-09-04")
+            ctx["doenca"] = None
+            ctx["padroes"] = ["padrao sintetico de teste"]
+            out = dashboard._resumo_html(ctx)
+        finally:
+            conn.close()
+        self.assertIn("Resumo rapido", out)
+        self.assertIn("Atencao", out)
+        self.assertIn("padrao sintetico de teste", out)
+
+    def test_cartoes_de_dominio_mostram_confianca_streak_e_tendencia(self):
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-09-04")
+            carga = ctx["state"]["dominios"]["CARGA"]
+            carga["confianca"] = "alta"
+            carga["streak"] = {"dominio": "CARGA", "dias": 3,
+                               "data_inicio": "2026-09-02", "data_fim": "2026-09-04"}
+            carga["trend"] = {"dominio": "CARGA", "direcao": "IMPROVING", "n_pontos": 3}
+            out = dashboard._resumo_html(ctx)
+        finally:
+            conn.close()
+        self.assertIn("confianca alta", out)
+        self.assertIn("3 dia(s) de streak", out)
+        self.assertIn("desde 2026-09-02", out)
+        self.assertIn("melhorando", out)
+
+    def test_dominio_sem_tendencia_nao_inventa_direcao(self):
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-09-04")
+            out = dashboard._resumo_html(ctx)
+        finally:
+            conn.close()
+        self.assertIn("sem base 7d", out)
+        self.assertIn("sem streak ativo", out)
+        self.assertIn("confianca baixa", out)
+
+    def test_indice_mostra_contribuintes_do_proprio_dia(self):
+        """Notas por campo vem de recovery_index(); o dashboard so' as exibe
+        -- teste de formatacao, com valores ja' calculados pelo dominio."""
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-09-04")
+            ctx["indice"] = 6.4
+            ctx["notas"] = {"sleep_score": 7.0, "hrv_avg": 6.2,
+                            "rhr": 5.5, "tsb": 6.9}
+            ctx["pesos"] = {"sleep_score": 0.30, "hrv_avg": 0.30,
+                            "rhr": 0.20, "tsb": 0.20}
+            out = dashboard._resumo_html(ctx)
+        finally:
+            conn.close()
+        self.assertIn('class="contrib"', out)
+        for rotulo in ("Sono", "HRV", "FC repouso", "TSB"):
+            self.assertIn(f"<b>{rotulo}</b>", out)
+        self.assertIn("6.2", out)
+
+    def test_prova_realizada_nao_mostra_prontidao_nem_nutricao(self):
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-10-01")
+            out = dashboard.render_html(ctx)
+        finally:
+            conn.close()
+        self.assertIn('<div class="k">Prova em</div><div class="v">pos-prova</div>', out)
+        self.assertIn("nenhuma futura declarada", out)
+        self.assertNotIn("alvo conceitual p/ prova", out)
+        self.assertNotIn("Prontidao para a prova", out)
+        self.assertNotIn("Plano de nutricao da prova", out)
+        self.assertIn("Registro pos-prova", out)
+
     def test_nome_do_atleta_e_escapado(self):
         conn = _memory_db()
         try:
@@ -305,6 +385,86 @@ class TestRenderHtml(unittest.TestCase):
         finally:
             conn.close()
         self.assertNotIn("<script>alert(1)</script>", out)
+
+
+class TestPmc(unittest.TestCase):
+    """Fase 2: serie de 180 dias sem vazamento temporal e anotacoes de contexto."""
+
+    def setUp(self):
+        self.conn = _memory_db()
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_quebras_conhecidas_entram_uma_vez_por_dia(self):
+        _popula_um_dia(self.conn)
+        ctx = dashboard.build_context(self.conn, _perfil(), "2026-09-04")
+        quebras = [a["date"] for a in ctx["pmc"]["anotacoes"] if a["kind"] == "quebra"]
+        self.assertIn("2026-06-11", quebras)
+        self.assertEqual(quebras.count("2026-08-01"), 1)
+
+    def test_prova_declarada_dentro_da_janela_vira_anotacao(self):
+        _popula_um_dia(self.conn)
+        ctx = dashboard.build_context(self.conn, _perfil(), "2026-09-04")
+        provas = [a["label"] for a in ctx["pmc"]["anotacoes"] if a["kind"] == "prova"]
+        self.assertIn("Prova 10k", provas)
+
+    def test_serie_e_anotacoes_param_em_on_date(self):
+        _popula_um_dia(self.conn)
+        for dia in ("2026-09-05", "2026-09-06", "2026-09-19"):
+            self.conn.execute(
+                "INSERT INTO training_load (date, trimp_day, ctl, atl, tsb) "
+                "VALUES (?, 50, 80, 90, -10)", (dia,))
+        self.conn.commit()
+        ctx = dashboard.build_context(self.conn, _perfil(), "2026-09-04")
+        self.assertEqual(ctx["pmc"]["series"][-1]["date"], "2026-09-04")
+        self.assertTrue(all(a["date"] <= "2026-09-04" for a in ctx["pmc"]["anotacoes"]))
+        self.assertNotIn("Meia-maratona", [a["label"] for a in ctx["pmc"]["anotacoes"]])
+
+
+class TestRenderHtmlEstatico(unittest.TestCase):
+    """Fase 1 do redesenho: pagina sem dependencia externa e com os graficos
+    ja desenhados no HTML (imprime e abre com JavaScript desligado)."""
+
+    def _html(self) -> str:
+        conn = _memory_db()
+        try:
+            _popula_um_dia(conn)
+            ctx = dashboard.build_context(conn, _perfil(), "2026-09-04")
+            return dashboard.render_html(ctx)
+        finally:
+            conn.close()
+
+    def test_nao_depende_de_fonte_ou_recurso_externo(self):
+        out = self._html()
+        self.assertNotIn("fonts.googleapis.com", out)
+        self.assertNotIn("http://", out)
+        self.assertNotIn("https://", out)
+
+    def test_graficos_vem_desenhados_no_servidor(self):
+        out = self._html()
+        self.assertNotIn("FAROL_DATA", out)
+        self.assertNotIn("farolSpark", out)
+        self.assertNotIn("farolPerformance", out)
+        self.assertIn("farolNutrition", out)
+        self.assertGreaterEqual(out.count("<svg"), 8)
+        self.assertIn('role="img"', out)
+        self.assertIn("spark-line", out)
+        self.assertIn("bullet-dot", out)
+        self.assertIn("Carga de 180 dias (PMC)", out)
+        self.assertIn('<svg class="pmc"', out)
+
+    def test_secoes_terciarias_ficam_em_details_fechado(self):
+        out = self._html()
+        self.assertEqual(out.count('<details class="fold"'), 5)
+        self.assertIn("Monitoramento de lesoes", out)
+        self.assertIn("Calibracao automatica do modelo", out)
+        inicio = out.index('<details class="fold"><summary><span>Perfil')
+        fim = out.index("</details>", inicio)
+        self.assertIn("data/profile.yaml", out[inicio:fim])
+
+    def test_pagina_cabe_no_orcamento(self):
+        self.assertLess(len(self._html()), 150_000)
 
 
 @skip_unless_real_db()

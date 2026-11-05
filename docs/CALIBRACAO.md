@@ -1,7 +1,7 @@
 # Calibração
 
 O relatório compara cada métrica contra a sua própria janela móvel. A
-calibração operacional é automática: após cada `farol.ingest`, o Farol gera
+calibração operacional é automática: após cada `farol.pipeline.ingest`, o Farol gera
 `reports/CALIBRACAO_AUTOMATICA.md` e o dashboard mostra a mesma leitura.
 
 Ela compara o índice de recuperação do Farol ao Training Readiness do Garmin,
@@ -16,7 +16,7 @@ causal. A rotina não altera `profile.yaml`, pesos, limiares ou baselines.
 
 ## Registro subjetivo opcional (legado)
 
-`CALIBRACAO_LOG.txt` e `farol.calibration_review` continuam disponíveis para
+`CALIBRACAO_LOG.txt` e `farol.insights.calibration_review` continuam disponíveis para
 quem quiser confrontar o relatório com percepção pessoal. Esse registro é
 exploratório e não é requisito para a calibração automática nem altera o
 modelo por si só.
@@ -37,7 +37,7 @@ recovery_index:
 Qualquer ajuste exige decisão explícita, documentação e testes. A calibração
 automática não sugere nem aplica novos pesos.
 
-### 2. A sensibilidade dos z-scores — `farol/metrics.py`
+### 2. A sensibilidade dos z-scores — `farol/core/metrics.py`
 
 ```python
 _Z_ATENCAO = -0.5   # a partir daqui, "atencao"
@@ -48,7 +48,7 @@ Mexa aqui só se o relatório marcar `atencao` em dias que você considera norma
 (afaste para −0,75) ou passar batido por dias ruins (aproxime para −0,35).
 Lembre que 0,5 desvio é a fronteira usual entre variação do dia e mudança real.
 
-### 3. As âncoras da nota — `farol/today.py::score_from`
+### 3. As âncoras da nota — `farol/reports/today.py::score_from`
 
 ```python
 # z=0 -> 6.5   z=-0.5 -> 6.0   z=-1.5 -> 3.5
@@ -82,7 +82,7 @@ referência histórica. Seu único consumidor era o `farol.signal`, removido jun
 
 | sintoma | causa provável |
 |---|---|
-| `Nenhum dado para <data>` | `farol.ingest` ainda não rodou hoje |
+| `Nenhum dado para <data>` | `farol.pipeline.ingest` ainda não rodou hoje |
 | métrica com `confianca baixa` | poucos dias com aquele campo na janela de 90 dias; HRV e sono só existem em ~40% dos dias |
 | `z` ausente (`sem dado`) | menos de 8 pontos na janela — o desvio seria instável demais para ancorar um z |
 | login do Garmin falha | apague `.garmin_token/` e rode de novo; a senha do `.env` cria uma sessão nova |
@@ -91,18 +91,18 @@ referência histórica. Seu único consumidor era o `farol.signal`, removido jun
 ## Nota histórica (2026-09-03) — comando e formato do log legado
 
 Este documento foi escrito antes do MODEL_V1.0 ser congelado e antes de
-`farol/longitudinal.py` existir, quando `farol.today` (o índice único) era o
+`farol/domain/longitudinal.py` existir, quando `farol.reports.today` (o índice único) era o
 único retrato do dia. As regras acima (rotina, critério de conclusão,
 diagnóstico de sintomas) continuam valendo sem alteração — esta nota só
 registra a divergência entre o formato de linha única descrito acima e o que
 `CALIBRACAO_LOG.txt` de fato usa hoje.
 
-`farol/calibration.py` (`python -m farol.calibration`, rodado depois de
-`farol.ingest --days 2`) gera a entrada do dia em `CALIBRACAO_LOG.txt`.
+`farol/insights/calibration.py` (`python -m farol.insights.calibration`, rodado depois de
+`farol.pipeline.ingest --days 2`) gera a entrada do dia em `CALIBRACAO_LOG.txt`.
 Em vez de uma linha só com o índice, cada entrada é um bloco com o índice
 **e** o estado por domínio (CARGA/RECUPERAÇÃO/SONO/PERFORMANCE/CONVERGÊNCIA
-de `farol.state.gather`) **e** os sinais longitudinais (streak de
-`farol.longitudinal`) — o retrato completo que `DAILY_STATE.md` já produz,
+de `farol.domain.state.gather`) **e** os sinais longitudinais (streak de
+`farol.domain.longitudinal`) — o retrato completo que `DAILY_STATE.md` já produz,
 não só o índice. O princípio central desta página continua intacto: nada é
 preenchido a partir da percepção real, e **BATEU COM A REALIDADE?** — o
 equivalente à terceira coluna do formato original — segue sendo a única

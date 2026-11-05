@@ -1,11 +1,11 @@
-"""Testes de farol.recovery: score_from/recovery_index/recovery_label --
+"""Testes de farol.domain.recovery: score_from/recovery_index/recovery_label --
 o calculo mais visivel do relatorio diario (o indice de recuperacao 0-10),
 sem teste direto antes desta auditoria (2026-09-04). recovery_status ja
 tinha cobertura em test_core.py."""
 import unittest
 
-from farol.metrics import Metric
-from farol.recovery import PESOS_PADRAO, recovery_index, recovery_label, score_from
+from farol.core.metrics import Metric
+from farol.domain.recovery import PESOS_PADRAO, recovery_index, recovery_label, score_from
 
 
 def _metric(z, higher_is_better=True, has_value=True):

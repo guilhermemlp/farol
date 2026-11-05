@@ -1,13 +1,14 @@
-"""Testes de farol.daily_analysis: DAILY_ANALYSIS.md, o diagnostico completo
-gerado a partir da mesma classificacao de dominio de farol.state."""
+"""Testes de farol.reports.daily_analysis: DAILY_ANALYSIS.md, o diagnostico completo
+gerado a partir da mesma classificacao de dominio de farol.domain.state."""
 import json
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
 from golden_support import skip_unless_real_db
-from farol import daily_analysis, db
-from farol.daily_state_builder import build_daily_state
+from farol.core import db
+from farol.reports import daily_analysis
+from farol.domain.daily_state_builder import build_daily_state
 
 
 def _memory_db() -> sqlite3.Connection:
@@ -23,7 +24,7 @@ class TestDailyAnalysisBase(unittest.TestCase):
 
     def setUp(self):
         # Baseline com pequena variacao ciclica (nao um valor fixo repetido)
-        # -- com sd_90d = 0 farol.metrics nao calcula z (divisao por zero
+        # -- com sd_90d = 0 farol.core.metrics nao calcula z (divisao por zero
         # evitada de proposito) e toda metrica sairia como "sem_dado", o que
         # mascararia os testes de agregacao de dominio abaixo. O dia-alvo
         # recebe o valor medio exato do ciclo (calculado, nao chutado), para
@@ -350,7 +351,7 @@ class TestAusenciaDeDados(unittest.TestCase):
 
 @skip_unless_real_db()
 class TestGoldenSample(unittest.TestCase):
-    """farol.db real, mesma base que farol.state e farol.daily_analysis
+    """farol.db real, mesma base que farol.domain.state e farol.reports.daily_analysis
     consomem em producao. Confirma que o diagnostico nao introduz nenhum
     numero diferente do golden sample ja validado."""
 

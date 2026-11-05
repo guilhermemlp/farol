@@ -1,4 +1,4 @@
-"""Testes de farol.db: ensure_schema() e a migracao de farol_daily_state.
+"""Testes de farol.core.db: ensure_schema() e a migracao de farol_daily_state.
 
 Sem teste dedicado antes desta auditoria (2026-09-04) -- a migracao so era
 exercitada implicitamente pelo banco real (data/farol.db), que ja tinha o
@@ -10,7 +10,7 @@ era testado de verdade -- so validado manualmente, uma vez, na auditoria.
 import sqlite3
 import unittest
 
-from farol.db import _NOVAS_COLUNAS_ACTIVITIES, _NOVAS_COLUNAS_FAROL_DAILY_STATE, ensure_schema
+from farol.core.db import _NOVAS_COLUNAS_ACTIVITIES, _NOVAS_COLUNAS_FAROL_DAILY_STATE, ensure_schema
 
 
 def _schema_pre_2026_09() -> str:

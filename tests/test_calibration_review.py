@@ -1,12 +1,13 @@
-"""Testes de farol.calibration_review: parse do CALIBRACAO_LOG.txt e
+"""Testes de farol.insights.calibration_review: parse do CALIBRACAO_LOG.txt e
 estatisticas de concordancia, so quando ha entradas preenchidas suficientes."""
 import re
 import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import calibration, calibration_review, db
-from farol.daily_state_builder import build_daily_state
+from farol.core import db
+from farol.insights import calibration, calibration_review
+from farol.domain.daily_state_builder import build_daily_state
 
 _PROFILE = {"recovery_index": {"weights": {
     "sleep_score": 0.30, "hrv_avg": 0.30, "rhr": 0.20, "tsb": 0.20,
@@ -45,7 +46,7 @@ class TestParseLog(unittest.TestCase):
             "DATA: 2026-09-03\n"
             "============================================================\n"
             "\n"
-            "FAROL (state.gather + farol.today)\n"
+            "FAROL (state.gather + farol.reports.today)\n"
             "- INDICE DE RECUPERACAO: 7.1/10 -- dentro do seu normal\n"
             "- CARGA: NORMAL\n"
             "- RECUPERACAO: NORMAL\n"
@@ -67,7 +68,7 @@ class TestParseLog(unittest.TestCase):
             "DATA: 2026-09-04\n"
             "============================================================\n"
             "\n"
-            "FAROL (state.gather + farol.today)\n"
+            "FAROL (state.gather + farol.reports.today)\n"
             "- INDICE DE RECUPERACAO: 6.9/10 -- dentro do seu normal\n"
             "\n"
             "BATEU COM A REALIDADE? (preencher manualmente: sim / nao / parcial)\n"

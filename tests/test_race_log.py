@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from farol import race_log
+from farol.records import race_log
 
 
 class TestRaceLog(unittest.TestCase):

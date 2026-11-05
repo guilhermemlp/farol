@@ -1,6 +1,6 @@
 import unittest
 
-from farol.course import CoursePoint, parse_gpx_xml, summarize_course
+from farol.insights.course import CoursePoint, parse_gpx_xml, summarize_course
 
 
 _GPX_SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>

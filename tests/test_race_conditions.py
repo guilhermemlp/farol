@@ -2,8 +2,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
-from farol.course import CoursePoint
-from farol.race_conditions import fetch_route_elevation, fetch_weather, sample_route
+from farol.insights.course import CoursePoint
+from farol.insights.race_conditions import fetch_route_elevation, fetch_weather, sample_route
 
 
 class TestRaceConditions(unittest.TestCase):

@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from farol import db
-from farol.config import DB_PATH
+from farol.core import db
+from farol.core.config import DB_PATH
 
 
 class TestConnectReadonly(unittest.TestCase):

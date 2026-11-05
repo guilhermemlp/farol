@@ -1,7 +1,8 @@
 # Dados pessoais e saidas geradas -- nunca versionar
-data/
-reports/
-output/
+# Ancorados na raiz: `farol/reports/` e' codigo, nao saida gerada.
+/data/
+/reports/
+/output/
 docs/PROFILE.md
 .agents/
 .claude/

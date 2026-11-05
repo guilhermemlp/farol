@@ -1,6 +1,6 @@
-"""Testes de farol.snapshot: retrato diario compartilhado por today/dashboard.
+"""Testes de farol.domain.snapshot: retrato diario compartilhado por today/dashboard.
 
-Nao retesta a matematica de farol.metrics -- so' confirma que os dois
+Nao retesta a matematica de farol.core.metrics -- so' confirma que os dois
 relatorios consomem o MESMO conjunto ordenado de Metric, com a mesma escolha
 de tabela (TSB em training_load) e o mesmo respeito a procedencia de RHR.
 """
@@ -8,7 +8,8 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db, snapshot
+from farol.core import db
+from farol.domain import snapshot
 
 
 def _memory_db() -> sqlite3.Connection:

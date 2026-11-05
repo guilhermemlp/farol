@@ -3,13 +3,14 @@
   ESTADO ATUAL — 2026-11-02
 ==================================================================
 
-RESUMO
-  Como ler: confira confianca e sinais, depois tendencia e persistencia;
-  convergencia orienta revisao das evidencias, nao decide o que fazer.
+RESUMO RAPIDO
   Recuperacao: 2.7/10 — bem abaixo do seu normal
+  Estado: alerta -- dominio em ALERTA (CARGA, RECUPERACAO, SONO): resposta fora do padrao pessoal
+  Convergencia: forte -- 3 dominios, 12 sinais no total (CARGA: 1 sinal, RECUPERACAO: 6 sinais, SONO: 5 sinais)
   Treino hoje: running (alta) + strength training (baixa)
   Atencao: 10 sinais simultaneamente fora do padrao: HRV, FC repouso, Sono, FC noturna, total_sleep_minutes, TSB, Respiracao, Body Battery min, Stress, Stress no sono
 
+RESUMO
   LEITURA:
     Estado: alerta -- dominio em ALERTA (CARGA, RECUPERACAO, SONO): resposta fora do padrao pessoal
     Sinal dominante: sinais em CARGA, RECUPERACAO, SONO: TSB, HRV, FC repouso, FC noturna, Stress, Respiracao, SpO2 minima, Duracao do sono, Tempo acordado, Sono profundo, Sono REM, Sleep score
@@ -105,9 +106,11 @@ PADROES DETECTADOS (convergencia de 2+ indicadores)
   - Respiracao a 3.8 desvios do seu normal (confianca alta, 90 dias)
 
 ==================================================================
+  Como ler: confira confianca e sinais, depois tendencia e persistencia;
+  convergencia orienta revisao das evidencias, nao decide o que fazer.
   Leitura retrospectiva contra seu historico; nao e diagnostico nem decisao de treino.
   Convergencia e alerta estatistico para revisar evidencias, nao um oraculo.
-  Esta execucao le o banco local e nao consulta o Garmin. Atualize via farol.ingest;
+  Esta execucao le o banco local e nao consulta o Garmin. Atualize via farol.pipeline.ingest;
   ingestao depende de rede. Clima de percurso e' consulta externa separada (Open-Meteo).
 ==================================================================
 

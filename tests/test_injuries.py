@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from farol import injuries
+from farol.records import injuries
 
 
 class TestInjuryLog(unittest.TestCase):

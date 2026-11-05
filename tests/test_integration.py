@@ -10,9 +10,9 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 
-from farol import db
-from farol.daily_state_builder import build_daily_state
-from farol.training_load import recompute_training_load, trimp
+from farol.core import db
+from farol.domain.daily_state_builder import build_daily_state
+from farol.domain.training_load import recompute_training_load, trimp
 
 
 class TestDailyStateIntegration(unittest.TestCase):

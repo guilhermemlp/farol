@@ -2,7 +2,7 @@
 
 O banco real tem os dados pessoais do atleta e nao e' versionado (gitignore:
 `farol.db`, `profile.yaml`). Ele e' reconstruido localmente por
-`python -m farol.ingest` (que faz login no Garmin) ou `python -m farol.load`
+`python -m farol.pipeline.ingest` (que faz login no Garmin) ou `python -m farol.pipeline.load`
 (que le a planilha). Num ambiente limpo (CI, checkout novo), esse banco nao
 existe -- e os testes golden que dependem dele devem ser PULADOS com mensagem
 clara, nao falhar com erro de banco inexistente (premissa da auditoria F8:
@@ -16,7 +16,7 @@ chamam `db.connect()` sem argumento (banco real).
 import os
 import unittest
 
-from farol.config import DB_PATH
+from farol.core.config import DB_PATH
 
 
 def skip_unless_real_db():
@@ -32,6 +32,6 @@ def skip_unless_real_db():
     return unittest.skipUnless(
         os.path.exists(DB_PATH),
         f"sem banco real em {DB_PATH} (dados pessoais nao versionados); "
-        "rode `python -m farol.load` (planilha) ou `python -m farol.ingest` "
+        "rode `python -m farol.pipeline.load` (planilha) ou `python -m farol.pipeline.ingest` "
         "(Garmin) para criar, ou rode os testes em memoria sem depender do banco.",
     )

@@ -1,10 +1,10 @@
 # ESTADO DO ATLETA — 2026-11-02
 
-Gerado automaticamente a partir de `farol_daily_state` (`python -m farol.state`). Ver MODEL_V1.1.md para a definicao dos campos.
+Gerado automaticamente a partir de `farol_daily_state` (`python -m farol.domain.state`). Ver MODEL_V1.1.md para a definicao dos campos.
 
 > **Leitura descritiva:** os estados comparam dados ao historico individual. Convergencia e um sinal para revisar evidencias, confianca e persistencia; nao e diagnostico nem decisao automatica de treino.
 
-> **Dados:** este relatorio le o banco SQLite local e nao consulta Garmin ou clima. Para atualizar o historico, rode `python -m farol.ingest`; o clima do percurso e uma consulta externa separada.
+> **Dados:** este relatorio le o banco SQLite local e nao consulta Garmin ou clima. Para atualizar o historico, rode `python -m farol.pipeline.ingest`; o clima do percurso e uma consulta externa separada.
 
 ## MATRIZ RAPIDA
 

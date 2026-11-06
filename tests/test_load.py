@@ -4,7 +4,9 @@ Regressao: `python -m farol.pipeline.load --help` ignorava os argumentos e
 comecava a reconstruir o banco pessoal. Ajuda e erro de uso precisam sair antes
 de qualquer conexao (de escrita ou leitura) ou leitura de planilha.
 """
+import io
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from farol.insights import correlations
@@ -15,7 +17,8 @@ class TestLoadCliArgs(unittest.TestCase):
     def _assert_no_work(self, argv):
         with mock.patch.object(load.db, "connect_write") as connect_write, \
                 mock.patch.object(load, "load_profile") as load_profile, \
-                mock.patch.object(load.openpyxl, "load_workbook") as load_workbook:
+                mock.patch.object(load.openpyxl, "load_workbook") as load_workbook, \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit) as ctx:
                 load.main(argv)
         connect_write.assert_not_called()
@@ -32,7 +35,8 @@ class TestLoadCliArgs(unittest.TestCase):
 
 class TestCorrelationsCliArgs(unittest.TestCase):
     def test_help_sai_sem_abrir_o_banco(self):
-        with mock.patch.object(correlations.db, "connect_readonly") as connect:
+        with mock.patch.object(correlations.db, "connect_readonly") as connect, \
+                redirect_stdout(io.StringIO()):
             with self.assertRaises(SystemExit) as ctx:
                 correlations.main(["--help"])
         connect.assert_not_called()
